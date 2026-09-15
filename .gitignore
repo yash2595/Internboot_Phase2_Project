@@ -1,0 +1,26 @@
+# Environment variables (SECURITY RISK - NEVER COMMIT)
+.env
+.env.local
+.env.*.local
+
+# Dependency directories
+/vendor/
+
+# User uploads & generated files
+/public/uploads/*
+!/public/uploads/.gitkeep
+/public/certificates/generated/*
+!/public/certificates/generated/.gitkeep
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# System files
+.DS_Store
+Thumbs.db
