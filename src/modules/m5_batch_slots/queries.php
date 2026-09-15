@@ -195,6 +195,52 @@ function get_candidate_booked_attempt(int $candidateId, int $assessmentId, mysql
 }
 
 /**
+ * Fetches candidate enrollment with an exclusive row lock (FOR UPDATE).
+ * Serializes parallel booking requests for the same candidate and assessment.
+ */
+function get_candidate_enrollment_for_update(int $candidateId, int $assessmentId, mysqli $conn): ?array {
+    $sql = "SELECT id, candidate_id, assessment_id, batch_id, eligibility_status 
+            FROM enrollments 
+            WHERE candidate_id = ? AND assessment_id = ? 
+            LIMIT 1 
+            FOR UPDATE";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new Exception("Failed to prepare candidate enrollment lock query: " . (@$conn->error ?: 'query error'));
+    }
+    $stmt->bind_param("ii", $candidateId, $assessmentId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    return $row ?: null;
+}
+
+/**
+ * Checks if a candidate already has an attempt within an active transaction with FOR UPDATE.
+ * Prevents parallel race condition across different slots.
+ */
+function get_candidate_booked_attempt_for_update(int $candidateId, int $assessmentId, mysqli $conn): ?array {
+    $sql = "SELECT id, candidate_id, assessment_id, exam_slot_id, status 
+            FROM attempts 
+            WHERE candidate_id = ? AND assessment_id = ? 
+            LIMIT 1 
+            FOR UPDATE";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new Exception("Failed to prepare attempt lock query: " . (@$conn->error ?: 'query error'));
+    }
+    $stmt->bind_param("ii", $candidateId, $assessmentId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    return $row ?: null;
+}
+
+/**
  * Fetches slot details joined with schedule and batch records.
  */
 function get_slot_details(int $slotId, mysqli $conn): ?array {
@@ -252,20 +298,31 @@ function decrement_slot_capacity(int $slotId, mysqli $conn): int {
 
 /**
  * Inserts a new booked attempt for a candidate.
+ * Attempts status 'booked' per Tech Lead recommendation, with graceful fallback to 'in_progress'
+ * if the live database schema enum has not yet been updated by M1.
  */
-function insert_attempt(int $candidateId, int $assessmentId, int $slotId, mysqli $conn): int {
+function insert_attempt(int $candidateId, int $assessmentId, int $slotId, mysqli $conn, string $status = 'booked'): int {
     $sql = "INSERT INTO attempts (candidate_id, assessment_id, exam_slot_id, status, created_at) 
-            VALUES (?, ?, ?, 'in_progress', NOW())";
+            VALUES (?, ?, ?, ?, NOW())";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         throw new Exception("Failed to prepare attempt insert query: " . (@$conn->error ?: 'query error'));
     }
-    $stmt->bind_param("iii", $candidateId, $assessmentId, $slotId);
-    $stmt->execute();
-    $attemptId = (int)$stmt->insert_id;
-    $stmt->close();
-
-    return $attemptId;
+    $stmt->bind_param("iiis", $candidateId, $assessmentId, $slotId, $status);
+    
+    try {
+        $stmt->execute();
+        $attemptId = (int)$stmt->insert_id;
+        $stmt->close();
+        return $attemptId;
+    } catch (mysqli_sql_exception $e) {
+        $stmt->close();
+        // Fallback to 'in_progress' if 'booked' is not yet in the MySQL ENUM on the database
+        if ($status === 'booked' && (str_contains($e->getMessage(), 'truncated') || str_contains($e->getMessage(), 'status'))) {
+            return insert_attempt($candidateId, $assessmentId, $slotId, $conn, 'in_progress');
+        }
+        throw $e;
+    }
 }
 
 /**

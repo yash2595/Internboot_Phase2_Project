@@ -29,7 +29,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // 5. Require Core Infrastructure Files
-require_once __DIR__ . '/db.php';
+require_once $rootDir . '/db.php';
 require_once __DIR__ . '/response.php';
 require_once __DIR__ . '/validator.php';
 ?>

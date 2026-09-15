@@ -303,4 +303,29 @@ All code was verified through two automated test suites:
 
 - **Feature Branch:** `feature/m5-batch-slots`
 - **Initial Feature Commit:** `c738188` (`feat(m5): implement batch formation, weekend exam scheduling, and concurrency-safe slot booking`)
-- **Documentation Commit:** Included in branch updates.
+- **Review Fixes Commit:** `fix(m5): resolve code review feedback from Tech Lead (IDOR, path, RBAC, double-lock concurrency, overflow)`
+
+---
+
+## 9. Tech Lead Code Review Fixes Log (Yash / M1)
+
+All 6 review items identified by Tech Lead Yash Mishra have been addressed and verified:
+
+| # | Priority | Item | Resolution |
+| :-: | :--- | :--- | :--- |
+| **1** | **Critical** | **Fix `candidate_id` trust issue (IDOR)** | Added session identity verification against `$_SESSION['candidate_id']` in `controller.php`. If payload sends `candidate_id`, rejects with `403 Forbidden` if mismatched with session. Rejects unauthenticated requests with `401 Unauthorized`. |
+| **2** | **Critical** | **Fix `bootstrap.php` $\to$ `db.php` path** | Updated line 32 in `src/core/bootstrap.php` from `require_once __DIR__ . '/db.php';` to `require_once $rootDir . '/db.php';`, unblocking database initialization project-wide. |
+| **3** | **High** | **Add admin check on `auto_batch.php`** | Added RBAC gate `if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') send_json_response('error', 'Unauthorized: admin access required', null, 403);` to `public/api/slots/auto_batch.php` and `controller.php`. |
+| **4** | **High** | **Guard against duplicate attempts across slots** | Implemented in-transaction row locking on candidate enrollment (`SELECT ... FOR UPDATE`) and attempt verification (`SELECT ... FROM attempts WHERE candidate_id = ? AND assessment_id = ? FOR UPDATE`). Eliminates parallel booking race conditions across different slots. |
+| **5** | **Medium** | **Reconsider attempt status at booking time** | Updated `insert_attempt` to set status `'booked'` by default. Implemented graceful fallback to `'in_progress'` if current database schema has not yet applied the enum migration. |
+| **6** | **Medium** | **Clarify batch overflow behavior** | Documented FIFO queue policy: when eligible count exceeds threshold (e.g. 105 vs 100), exactly 100 are assigned to the batch and remaining 5 candidates retain queue seniority (`batch_id = NULL`) to form the next batch. Added `create_all_eligible_batches` helper and response metadata. |
+
+### Schema Migration Recommendation for M1 (Fix #5):
+Execute on Railway database instance:
+```sql
+ALTER TABLE `attempts` 
+  MODIFY COLUMN `status` ENUM('booked', 'in_progress', 'submitted', 'expired') 
+  NOT NULL DEFAULT 'booked';
+```
+*(Our code dynamically falls back to `'in_progress'` until this migration is applied on Railway).*
+

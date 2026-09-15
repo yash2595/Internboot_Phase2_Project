@@ -147,13 +147,17 @@ function check_and_create_batch(int $assessmentId, mysqli $conn, ?int $customThr
         // Commit batch and scheduling transaction
         $conn->commit();
 
+        $remainingEligible = max(0, $eligibleCount - count($enrollmentIds));
+
         return [
             'batch_id' => $batchId,
             'batch_number' => $batchNumber,
             'assessment_id' => $assessmentId,
             'assigned_candidates_count' => count($enrollmentIds),
             'threshold' => $threshold,
-            'schedules' => $createdSchedules
+            'schedules' => $createdSchedules,
+            'overflow_candidates_count' => $remainingEligible,
+            'overflow_policy' => 'FIFO queue: remaining candidates wait for subsequent registrations to reach batch threshold.'
         ];
     } catch (Throwable $e) {
         $conn->rollback();
@@ -162,12 +166,31 @@ function check_and_create_batch(int $assessmentId, mysqli $conn, ?int $customThr
 }
 
 /**
+ * Processes all eligible candidates for an assessment, auto-creating as many
+ * full batches as the eligible candidate count allows (e.g. 210 candidates -> 2 batches).
+ * Any remaining candidates (< threshold) remain in the FIFO queue.
+ */
+function create_all_eligible_batches(int $assessmentId, mysqli $conn, ?int $customThreshold = null): array {
+    $batches = [];
+    while (true) {
+        $batch = check_and_create_batch($assessmentId, $conn, $customThreshold);
+        if ($batch === null) {
+            break;
+        }
+        $batches[] = $batch;
+    }
+    return $batches;
+}
+
+/**
  * Books an exam slot for an eligible candidate with query-level concurrency protection.
  *
  * Anti-race-condition guarantees:
  * 1. Checks candidate does not already hold a slot/attempt for the assessment.
- * 2. Decrements capacity atomically in the database query (WHERE seats_remaining > 0).
- * 3. Enclosed in an ACID database transaction.
+ * 2. Locks candidate enrollment (FOR UPDATE) inside the transaction to serialize concurrent requests.
+ * 3. Double-checks attempt table (FOR UPDATE) inside the transaction to guard against parallel attempts across different slots.
+ * 4. Decrements capacity atomically in the database query (WHERE seats_remaining > 0).
+ * 5. Enclosed in an ACID database transaction.
  *
  * @param int $candidateId Candidate profile ID
  * @param int $assessmentId Assessment configuration ID
@@ -176,7 +199,7 @@ function check_and_create_batch(int $assessmentId, mysqli $conn, ?int $customThr
  * @return array Standardized booking response data payload
  */
 function book_exam_slot(int $candidateId, int $assessmentId, int $examSlotId, mysqli $conn): array {
-    // 1. Validate Candidate Enrollment & Eligibility
+    // 1. Initial Validation: Candidate Enrollment & Eligibility
     $enrollment = get_candidate_enrollment($candidateId, $assessmentId, $conn);
     if (!$enrollment) {
         throw new Exception("Candidate is not enrolled in the specified assessment");
@@ -192,7 +215,7 @@ function book_exam_slot(int $candidateId, int $assessmentId, int $examSlotId, my
 
     $candidateBatchId = (int)$enrollment['batch_id'];
 
-    // 2. Prevent candidate from holding more than one slot for this assessment
+    // 2. Initial Pre-flight Check: Prevent duplicate attempt
     $existingAttempt = get_candidate_booked_attempt($candidateId, $assessmentId, $conn);
     if ($existingAttempt) {
         throw new Exception("Candidate already has a booked slot for this assessment (Attempt ID: " . $existingAttempt['id'] . ")");
@@ -220,18 +243,32 @@ function book_exam_slot(int $candidateId, int $assessmentId, int $examSlotId, my
         throw new Exception("Selected exam slot is fully booked. No seats remaining.");
     }
 
-    // 4. Begin Database Transaction for atomic seat decrement & attempt creation
+    // 4. Begin Database Transaction for atomic checks, seat decrement & attempt creation
     $conn->begin_transaction();
 
     try {
-        // Query-level concurrency check: atomically decrement only if seats_remaining > 0
+        // Concurrency Guard 1: Acquire exclusive row lock on candidate's enrollment
+        // Serializes concurrent booking requests for the same candidate and assessment
+        $lockedEnrollment = get_candidate_enrollment_for_update($candidateId, $assessmentId, $conn);
+        if (!$lockedEnrollment) {
+            throw new Exception("Candidate is not enrolled in the specified assessment");
+        }
+
+        // Concurrency Guard 2: In-transaction check for any attempt already created for this assessment
+        // Crucial fix: prevents parallel race condition if two requests target different slots for the same candidate
+        $existingAttemptInTx = get_candidate_booked_attempt_for_update($candidateId, $assessmentId, $conn);
+        if ($existingAttemptInTx) {
+            throw new Exception("Candidate already has a booked slot for this assessment (Attempt ID: " . $existingAttemptInTx['id'] . ")");
+        }
+
+        // Concurrency Guard 3: Query-level concurrency check - atomically decrement only if seats_remaining > 0
         $affectedRows = decrement_slot_capacity($examSlotId, $conn);
         if ($affectedRows === 0) {
             throw new Exception("Selected exam slot is fully booked. No seats remaining.");
         }
 
-        // Insert new exam attempt record
-        $attemptId = insert_attempt($candidateId, $assessmentId, $examSlotId, $conn);
+        // Insert new exam attempt record (status 'booked' per Tech Lead recommendation, falling back to 'in_progress' if enum unmigrated)
+        $attemptId = insert_attempt($candidateId, $assessmentId, $examSlotId, $conn, 'booked');
 
         // Commit transaction
         $conn->commit();

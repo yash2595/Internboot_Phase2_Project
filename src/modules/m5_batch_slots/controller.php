@@ -6,13 +6,34 @@ require_once __DIR__ . '/service.php';
 /**
  * Controller handler for reserving an exam slot for an eligible candidate.
  * Matches API Contract: POST /api/slots/book.php
+ *
+ * Security (IDOR Protection):
+ * Reads candidate identity from $_SESSION['candidate_id'] set at login by M3.
+ * Rejects with 403 if candidate_id in payload conflicts with authenticated session.
  */
 function handle_book_slot_request(array $input, mysqli $conn): void {
-    $candidateId = isset($input['candidate_id']) ? (int)$input['candidate_id'] : 0;
+    $sessionCandidateId = !empty($_SESSION['candidate_id']) ? (int)$_SESSION['candidate_id'] : null;
+    $bodyCandidateId = isset($input['candidate_id']) && is_numeric($input['candidate_id']) ? (int)$input['candidate_id'] : null;
     $assessmentId = isset($input['assessment_id']) ? (int)$input['assessment_id'] : 0;
     $examSlotId = isset($input['exam_slot_id']) ? (int)$input['exam_slot_id'] : 0;
 
-    // Validation checks
+    // 1. IDOR Authentication & Session Cross-Check
+    if ($sessionCandidateId !== null) {
+        if ($bodyCandidateId !== null && $bodyCandidateId !== $sessionCandidateId) {
+            send_json_response('error', 'Forbidden: candidate_id does not match authenticated session', null, 403);
+            return;
+        }
+        $candidateId = $sessionCandidateId;
+    } elseif (!empty($_SESSION['role']) && $_SESSION['role'] === 'admin' && $bodyCandidateId !== null && $bodyCandidateId > 0) {
+        // Admin role allowed to specify candidate_id
+        $candidateId = $bodyCandidateId;
+    } else {
+        // No authenticated session found
+        send_json_response('error', 'Unauthorized: candidate authentication session required', null, 401);
+        return;
+    }
+
+    // 2. Input Validation Checks
     if ($candidateId <= 0) {
         send_json_response('error', 'A valid candidate_id is required', null, 400);
         return;
@@ -41,8 +62,16 @@ function handle_book_slot_request(array $input, mysqli $conn): void {
 /**
  * Controller handler for batch threshold check and automatic batch creation.
  * Matches API Contract: POST /api/slots/auto_batch.php
+ *
+ * Security: Enforces Admin role access (Fix #3 per Tech Lead review).
  */
 function handle_auto_batch_request(array $input, mysqli $conn): void {
+    // RBAC Security Check: Admin Access Only
+    if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+        send_json_response('error', 'Unauthorized: admin access required', null, 403);
+        return;
+    }
+
     $assessmentId = isset($input['assessment_id']) ? (int)$input['assessment_id'] : 0;
     $customThreshold = isset($input['threshold']) && is_numeric($input['threshold']) ? (int)$input['threshold'] : null;
 
@@ -88,6 +117,11 @@ function handle_auto_batch_request(array $input, mysqli $conn): void {
 function handle_list_slots_request(array $input, mysqli $conn): void {
     $assessmentId = isset($input['assessment_id']) ? (int)$input['assessment_id'] : 0;
     $candidateId = isset($input['candidate_id']) && is_numeric($input['candidate_id']) ? (int)$input['candidate_id'] : null;
+
+    // If candidate is logged in via session and candidate_id wasn't explicitly provided, use session
+    if ($candidateId === null && !empty($_SESSION['candidate_id'])) {
+        $candidateId = (int)$_SESSION['candidate_id'];
+    }
 
     if ($assessmentId <= 0) {
         send_json_response('error', 'A valid assessment_id parameter is required', null, 400);
