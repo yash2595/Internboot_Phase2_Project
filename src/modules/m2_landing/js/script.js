@@ -9,8 +9,8 @@
 
 const IB_CONFIG = {
   /* --- money & batch --- */
-  fee:        "₹2499",
-  feeShort:   "₹2499",
+  fee:        "₹2999",
+  feeShort:   "₹2999",
   batchSize:  "100",
 
   /* --- exam --- */
