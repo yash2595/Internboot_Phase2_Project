@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Settings | InternBoot Admin</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        intern: {
+                            blue: "#2563eb",
+                            dark: "#1d4ed8",
+                            light: "#eff6ff"
+                        }
+                    },
+
+                    fontFamily: {
+                        inter: ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+
+<body class="bg-slate-50 font-inter text-slate-800">
+
+    <div class="min-h-screen">
+
+
+        <!-- ========================================== -->
+        <!-- SIDEBAR -->
+        <!-- ========================================== -->
+
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white">
+
+            <!-- Logo -->
+            <div class="flex h-24 items-center justify-center border-b border-slate-200 px-5">
+                <img src="../assets/logo.png" alt="InternBoot" class="w-40">
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-4 py-6">
+
+                <a href="index.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
+                    Dashboard
+                </a>
+
+
+                <a href="candidates.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="users" class="h-5 w-5"></i>
+                    Candidates
+                </a>
+
+
+                <a href="batches.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="calendar-days" class="h-5 w-5"></i>
+                    Batches & Slots
+                </a>
+
+
+                <a href="questions.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="file-question" class="h-5 w-5"></i>
+                    Question Bank
+                </a>
+
+
+                <a href="results.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="chart-column" class="h-5 w-5"></i>
+                    Results
+                </a>
+
+
+                <a href="certificates.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="award" class="h-5 w-5"></i>
+                    Certificates
+                </a>
+
+
+                <a href="placement.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="briefcase-business" class="h-5 w-5"></i>
+                    Placement
+                </a>
+
+            </nav>
+
+
+            <!-- Bottom -->
+            <div class="border-t border-slate-200 p-4">
+
+                <!-- Settings -->
+                <a href="setting.html"
+                    class="mb-1 flex h-12 items-center gap-4 rounded-xl bg-intern-blue px-4 font-medium text-white">
+                    <i data-lucide="settings" class="h-5 w-5"></i>
+                    Settings
+                </a>
+
+
+                <!-- Logout -->
+                <a href="#"
+                    class="flex h-12 items-center gap-4 rounded-xl px-4 text-red-500 transition hover:bg-red-50">
+                    <i data-lucide="log-out" class="h-5 w-5"></i>
+                    Logout
+                </a>
+
+            </div>
+
+        </aside>
+
+
+
+        <!-- ========================================== -->
+        <!-- MAIN CONTENT -->
+        <!-- ========================================== -->
+
+        <main class="ml-64 min-h-screen">
+
+
+            <!-- Header -->
+            <header class="flex h-24 items-center justify-between border-b border-slate-200 bg-white px-8">
+
+                <div>
+
+                    <h1 class="text-2xl font-semibold text-slate-900">
+                        Settings
+                    </h1>
+
+                    <p class="mt-1 text-sm text-slate-500">
+                        Manage your admin profile and panel preferences.
+                    </p>
+
+                </div>
+
+
+                <!-- Admin -->
+                <div class="flex items-center gap-3">
+
+                    <a href="setting.html" id="adminAvatar"
+                        class="group relative flex h-10 w-10  items-center justify-center overflow-hidden rounded-full bg-intern-light font-semibold text-intern-blue" title="Profile Settings">
+
+                        <img id="adminAvatarImage" src="" alt="Admin Avatar" class="hidden h-full w-full object-cover">
+
+                        <span id="adminAvatarInitial">A</span>
+
+                        <span
+                            class="absolute inset-0 hidden items-center justify-center bg-black/40 text-[9px] font-medium text-white group-hover:flex">
+                            Edit
+                        </span>
+
+                    </a>
+
+                    <input type="file" id="avatarUpload" accept="image/png,image/jpeg,image/jpg,image/webp"
+                        class="hidden">
+
+                    <div class="hidden">
+                        <p id="adminHeaderName" class="text-sm font-semibold text-slate-800">
+                            Admin
+                        </p>
+
+                        <p class="text-xs text-slate-500">
+                            Administrator
+                        </p>
+                    </div>
+
+                </div>
+
+            </header>
+
+
+
+            <!-- ========================================== -->
+            <!-- CONTENT -->
+            <!-- ========================================== -->
+
+            <section class="p-8">
+
+
+                <!-- Page Intro -->
+                <div class="mb-8">
+
+                    <h2 class="text-xl font-semibold text-slate-900">
+                        Admin Settings
+                    </h2>
+
+                    <p class="mt-1 text-sm text-slate-500">
+                        Update your profile and manage your admin panel preferences.
+                    </p>
+
+                </div>
+
+
+
+                <!-- ========================================== -->
+                <!-- PROFILE -->
+                <!-- ========================================== -->
+
+                <div class="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <!-- Section Header -->
+                    <div class="border-b border-slate-200 px-6 py-5">
+
+                        <div class="flex items-center gap-3">
+
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-intern-light text-intern-blue">
+                                <i data-lucide="user" class="h-5 w-5"></i>
+                            </div>
+
+                            <div>
+
+                                <h3 class="font-semibold text-slate-900">
+                                    Admin Profile
+                                </h3>
+
+                                <p class="text-sm text-slate-500">
+                                    Manage your basic administrator information.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Profile Content -->
+                    <div class="p-6">
+
+                        <div class="flex flex-col gap-8 md:flex-row">
+
+
+                            <!-- Profile Photo -->
+                            <div class="flex flex-col items-center md:w-40">
+
+                                <label for="avatarUpload"
+                                    class="group relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-intern-light text-3xl font-semibold text-intern-blue">
+
+                                    <img id="settingsAvatarImage" src="" alt="Admin Avatar"
+                                        class="hidden h-full w-full object-cover">
+
+                                    <span id="settingsAvatarInitial">A</span>
+
+                                    <span
+                                        class="absolute inset-0 hidden items-center justify-center rounded-full bg-black/40 text-xs font-medium text-white group-hover:flex">
+                                        Change
+                                    </span>
+
+                                </label>
+
+                                <button type="button" id="changePhotoButton"
+                                    class="mt-3 text-sm font-medium text-intern-blue hover:text-intern-dark">
+                                    Change photo
+                                </button>
+
+                            </div>
+
+
+
+                            <!-- Profile Fields -->
+                            <div class="grid flex-1 gap-5 md:grid-cols-2">
+
+                                <!-- Name -->
+                                <div>
+
+                                    <label for="adminName" class="mb-2 block text-sm font-medium text-slate-700">
+                                        Full Name
+                                    </label>
+
+                                    <input id="fullName" type="text" value="Admin"
+                                        class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-intern-blue focus:ring-2 focus:ring-intern-blue/10">
+
+                                </div>
+
+
+                                <!-- Email -->
+                                <div>
+
+                                    <label for="adminEmail" class="mb-2 block text-sm font-medium text-slate-700">
+                                        Email Address
+                                    </label>
+
+                                    <input id="email" type="email" value="admin@internboot.com"
+                                        class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-intern-blue focus:ring-2 focus:ring-intern-blue/10">
+
+                                </div>
+
+
+                                <!-- Phone -->
+                                <div>
+
+                                    <label for="adminPhone" class="mb-2 block text-sm font-medium text-slate-700">
+                                        Phone Number
+                                    </label>
+
+                                    <input id="phone" type="tel" placeholder="Enter phone number"
+                                        class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-intern-blue focus:ring-2 focus:ring-intern-blue/10">
+
+                                </div>
+
+
+                                <!-- Role -->
+                                <div>
+
+                                    <label class="mb-2 block text-sm font-medium text-slate-700">
+                                        Role
+                                    </label>
+
+                                    <div
+                                        class="flex h-[46px] items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-500">
+                                        Administrator
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Save -->
+                        <div class="mt-6 flex justify-end border-t border-slate-100 pt-5">
+
+                            <button type="button" id="saveChangesButton"
+                                class="inline-flex items-center gap-2 rounded-xl bg-intern-blue px-6 py-3 font-medium text-white transition hover:bg-intern-dark">
+
+                                <i data-lucide="save" class="h-5 w-5"></i>
+
+                                <span>Save Changes</span>
+
+                            </button>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- ========================================== -->
+                <!-- NOTIFICATIONS -->
+                <!-- ========================================== -->
+
+                <div class="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <div class="border-b border-slate-200 px-6 py-5">
+
+                        <div class="flex items-center gap-3">
+
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-intern-light text-intern-blue">
+                                <i data-lucide="bell" class="h-5 w-5"></i>
+                            </div>
+
+                            <div>
+
+                                <h3 class="font-semibold text-slate-900">
+                                    Notifications
+                                </h3>
+
+                                <p class="text-sm text-slate-500">
+                                    Choose which admin notifications you want to receive.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="divide-y divide-slate-100">
+
+
+                        <!-- Batch -->
+                        <label class="flex cursor-pointer items-center justify-between px-6 py-5">
+
+                            <div>
+
+                                <p class="text-sm font-medium text-slate-800">
+                                    Batch Notifications
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Receive updates about batches and available slots.
+                                </p>
+
+                            </div>
+
+
+                            <input type="checkbox" id="batchNotifications"
+                                class="h-5 w-5 rounded border-slate-300 text-intern-blue focus:ring-intern-blue"
+                                checked>
+
+                        </label>
+
+
+
+                        <!-- Assessment -->
+                        <label class="flex cursor-pointer items-center justify-between px-6 py-5">
+
+                            <div>
+
+                                <p class="text-sm font-medium text-slate-800">
+                                    Assessment Notifications
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Receive notifications about assessments and results.
+                                </p>
+
+                            </div>
+
+
+                            <input type="checkbox" id="assessmentNotifications"
+                                class="h-5 w-5 rounded border-slate-300 text-intern-blue focus:ring-intern-blue"
+                                checked>
+
+                        </label>
+
+
+
+                        <!-- Placement -->
+                        <label class="flex cursor-pointer items-center justify-between px-6 py-5">
+
+                            <div>
+
+                                <p class="text-sm font-medium text-slate-800">
+                                    Placement Notifications
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Receive updates about placement-ready candidates.
+                                </p>
+
+                            </div>
+
+
+                            <input type="checkbox" id="placementNotifications"
+                                class="h-5 w-5 rounded border-slate-300 text-intern-blue focus:ring-intern-blue"
+                                checked>
+
+                        </label>
+
+
+
+                        <!-- Certificates -->
+                        <label class="flex cursor-pointer items-center justify-between px-6 py-5">
+
+                            <div>
+
+                                <p class="text-sm font-medium text-slate-800">
+                                    Certificate Notifications
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Receive updates when certificates are generated or verified.
+                                </p>
+
+                            </div>
+
+
+                            <input type="checkbox" id="certificateNotifications"
+                                class="h-5 w-5 rounded border-slate-300 text-intern-blue focus:ring-intern-blue"
+                                checked>
+
+                        </label>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- ========================================== -->
+                <!-- PANEL PREFERENCES -->
+                <!-- ========================================== -->
+
+                <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <div class="border-b border-slate-200 px-6 py-5">
+
+                        <div class="flex items-center gap-3">
+
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-intern-light text-intern-blue">
+                                <i data-lucide="sliders-horizontal" class="h-5 w-5"></i>
+                            </div>
+
+                            <div>
+
+                                <h3 class="font-semibold text-slate-900">
+                                    Panel Preferences
+                                </h3>
+
+                                <p class="text-sm text-slate-500">
+                                    Manage basic preferences for the admin panel.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="divide-y divide-slate-100">
+
+
+                        <!-- Dashboard Refresh -->
+                        <div class="flex items-center justify-between px-6 py-5">
+
+                            <div>
+
+                                <p class="text-sm font-medium text-slate-800">
+                                    Dashboard Auto Refresh
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Automatically refresh dashboard information.
+                                </p>
+
+                            </div>
+
+
+                            <select id="refreshPreference"
+                                class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-intern-blue">
+
+                                <option value="off">
+                                    Off
+                                </option>
+
+                                <option value="30">
+                                    Every 30 seconds
+                                </option>
+
+                                <option value="60" selected>
+                                    Every 1 minute
+                                </option>
+
+                                <option value="300">
+                                    Every 5 minutes
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+
+                        <!-- Save Preferences -->
+                        <div class="flex justify-end px-6 py-5">
+
+                            <button id="savePreferences" type="button"
+                                class="inline-flex items-center gap-2 rounded-xl bg-intern-blue px-5 py-3 text-sm font-medium text-white transition hover:bg-intern-dark">
+
+                                <i data-lucide="save" class="h-4 w-4"></i>
+
+                                Save Preferences
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+
+
+    <!-- Lucide Icons -->
+   <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            if (typeof lucide !== "undefined") {
+                lucide.createIcons();
+            }
+        });
+    </script>
+
+    <script src="../js/admin.js"></script>
+
+</body>
+
+</html>
