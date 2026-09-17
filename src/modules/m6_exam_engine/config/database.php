@@ -1,24 +1,11 @@
 <?php
+// Deprecated: Forwarding to centralized bootstrap.php for team integration.
+// Database connection ($conn) is now dynamically initialized from .env (Railway Cloud DB).
 
-date_default_timezone_set('Asia/Kolkata');
-
-$host = "127.0.0.1";
-$port = 3307;
-$username = "root";
-$password = "";
-$database = "internboot_m6_dev";
-
-$conn = new mysqli(
-    $host,
-    $username,
-    $password,
-    $database,
-    $port
-);
-
-if ($conn->connect_error) {
-    http_response_code(500);
-    die("Database connection failed");
+if (file_exists(__DIR__ . '/../../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../../src/core/bootstrap.php';
+} elseif (file_exists(__DIR__ . '/../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../src/core/bootstrap.php';
+} else {
+    require_once dirname(__DIR__) . '/db.php';
 }
-
-$conn->set_charset("utf8mb4");

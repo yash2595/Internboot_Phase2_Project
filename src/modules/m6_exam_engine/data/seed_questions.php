@@ -1,6 +1,12 @@
 <?php
 
-require_once __DIR__ . '/../config/database.php';
+if (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../../../src/core/bootstrap.php';
+} elseif (file_exists(__DIR__ . '/../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../src/core/bootstrap.php';
+} else {
+    require_once __DIR__ . '/../db.php';
+}
 
 $questionBankId = 1;
 

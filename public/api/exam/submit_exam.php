@@ -1,8 +1,11 @@
 <?php
 
-session_start();
-
-require_once __DIR__ . '/../config/database.php';
+// Load central bootstrap (initializes session, .env, and Railway DB connection $conn)
+if (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../../../src/core/bootstrap.php';
+} else {
+    require_once __DIR__ . '/../src/core/bootstrap.php';
+}
 
 header('Content-Type: application/json');
 
