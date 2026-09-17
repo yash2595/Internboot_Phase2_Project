@@ -4,52 +4,95 @@
 require_once __DIR__ . '/queries.php';
 
 /**
- * Service function containing business logic for authenticating user and establishing session.
+ * Registers a new candidate: creates the `users` row and the `candidates`
+ * row together. Password is hashed here — never stored plain text.
  */
-function authenticate_user(string $email, string $password, mysqli $conn): array {
-    // Query database for user account
-    $user = get_user_by_email($email, $conn);
-
-    if (!$user) {
-        throw new Exception('Invalid email address or password');
+function register_candidate(mysqli $conn, string $fullName, string $email, string $phone, string $password, string $role = 'candidate'): array {
+    if (find_user_by_email($conn, $email)) {
+        return ['success' => false, 'message' => 'An account with this email already exists.', 'code' => 409];
+    }
+    if (candidate_phone_exists($conn, $phone)) {
+        return ['success' => false, 'message' => 'This phone number is already registered.', 'code' => 409];
     }
 
-    if ((int)$user['is_active'] !== 1) {
-        throw new Exception('Account is inactive. Please contact administration.');
+    $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+    $result = insert_user_and_candidate($conn, $email, $passwordHash, $fullName, $phone, $role);
+
+    if (!$result['success']) {
+        return $result;
     }
 
-    // Secure password verification against stored Bcrypt hash
-    if (!password_verify($password, $user['password'])) {
-        throw new Exception('Invalid email address or password');
-    }
-
-    // Fetch associated candidate profile details if user is candidate
-    $candidateId = null;
-    $fullName = null;
-
-    if ($user['role'] === 'candidate') {
-        $candidate = get_candidate_by_user_id((int)$user['id'], $conn);
-        if ($candidate) {
-            $candidateId = (int)$candidate['id'];
-            $fullName = $candidate['full_name'];
-        }
-    } else {
-        $fullName = ucfirst($user['role']) . ' User';
-    }
-
-    // Establish secure session state
-    $_SESSION['user_id'] = (int)$user['id'];
-    $_SESSION['role'] = $user['role'];
-    $_SESSION['candidate_id'] = $candidateId;
-    $_SESSION['full_name'] = $fullName;
-
-    // Return sanitized data payload matching API Contract specifications
-    return [
-        'user_id' => (int)$user['id'],
-        'email' => $user['email'],
-        'role' => $user['role'],
-        'candidate_id' => $candidateId,
-        'full_name' => $fullName
-    ];
+    return ['success' => true, 'user_id' => $result['user_id']];
 }
+
+/**
+ * Verifies email + password against the stored hash, and checks the
+ * account hasn't been deactivated (users.is_active).
+ */
+function authenticate_candidate(mysqli $conn, string $email, string $password): array {
+    $user = find_user_by_email($conn, $email);
+
+    if (!$user || !password_verify($password, $user['password'])) {
+        // Same generic message either way — don't reveal whether the email exists.
+        return ['success' => false, 'message' => 'Incorrect email or password.'];
+    }
+
+    if ((int) $user['is_active'] === 0) {
+        return ['success' => false, 'message' => 'This account has been deactivated. Please contact support.'];
+    }
+
+    unset($user['password']); // never let the hash leave this layer
+    return ['success' => true, 'user' => $user];
+}
+
+function initiate_registration(mysqli $conn, string $fullName, string $email, string $phone, string $password, string $role): array {
+    if (find_user_by_email($conn, $email)) {
+        return ['success' => false, 'message' => 'An account with this email already exists.', 'code' => 409];
+    }
+    if (candidate_phone_exists($conn, $phone)) {
+        return ['success' => false, 'message' => 'This phone number is already registered.', 'code' => 409];
+    }
+
+    $otp = (string) random_int(100000, 999999);
+    $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+
+    $saved = save_pending_registration($conn, $email, $otp, $fullName, $phone, $passwordHash, $role);
+    if (!$saved) {
+        return ['success' => false, 'message' => 'Could not initiate registration. Please try again.', 'code' => 500];
+    }
+
+    require_once __DIR__ . '/../../core/Mailer.php';
+    $sent = send_otp_email($email, $fullName, $otp);
+    if (!$sent) {
+        return ['success' => false, 'message' => 'Could not send verification email. Please try again.', 'code' => 500];
+    }
+
+    return ['success' => true];
+}
+
+function complete_registration_with_otp(mysqli $conn, string $email, string $otp): array {
+    $pending = find_pending_registration($conn, $email, $otp);
+
+    if (!$pending) {
+        return ['success' => false, 'message' => 'Invalid or expired verification code.', 'code' => 400];
+    }
+
+    $result = insert_user_and_candidate(
+        $conn,
+        $pending['email'],
+        $pending['password_hash'],
+        $pending['full_name'],
+        $pending['phone'],
+        $pending['role']
+    );
+
+    if (!$result['success']) {
+        return $result;
+    }
+
+    mark_pending_registration_used($conn, (int) $pending['id']);
+
+    return ['success' => true, 'user_id' => $result['user_id']];
+}
+
 ?>
