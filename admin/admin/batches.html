@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Batches & Slots | InternBoot Admin</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        intern: {
+                            blue: "#2563eb",
+                            dark: "#1d4ed8",
+                            light: "#eff6ff"
+                        }
+                    },
+                    fontFamily: {
+                        inter: ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+
+<body class="bg-slate-50 font-inter text-slate-800">
+
+    <div class="flex min-h-screen">
+
+
+        <!-- SIDEBAR -->
+        <aside class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white">
+
+            <!-- Logo -->
+            <div class="flex h-24 items-center justify-center border-b border-slate-200 px-5">
+
+                <img src="../assets/logo.png" alt="InternBoot" class="w-40">
+
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-4 py-6">
+
+                <a href="index.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
+                    Dashboard
+                </a>
+
+
+                <a href="candidates.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="users" class="h-5 w-5"></i>
+                    Candidates
+                </a>
+
+
+                <a href="batches.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl bg-intern-blue px-4 font-medium text-white">
+                    <i data-lucide="calendar-days" class="h-5 w-5"></i>
+                    Batches & Slots
+                </a>
+
+
+                <a href="questions.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="file-question" class="h-5 w-5"></i>
+                    Question Bank
+                </a>
+
+
+                <a href="results.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="chart-column" class="h-5 w-5"></i>
+                    Results
+                </a>
+
+
+                <a href="certificates.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="award" class="h-5 w-5"></i>
+                    Certificates
+                </a>
+
+
+                <a href="placement.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="briefcase-business" class="h-5 w-5"></i>
+                    Placement
+                </a>
+
+            </nav>
+
+
+            <!-- Bottom -->
+            <div class="border-t border-slate-200 p-4">
+
+                <a href="setting.html"
+                    class="mb-1 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 hover:bg-slate-100">
+                    <i data-lucide="settings" class="h-5 w-5"></i>
+                    Settings
+                </a>
+
+
+                <a href="#" class="flex h-12 items-center gap-4 rounded-xl px-4 text-red-500 hover:bg-red-50">
+                    <i data-lucide="log-out" class="h-5 w-5"></i>
+                    Logout
+                </a>
+
+            </div>
+
+        </aside>
+
+
+
+        <!-- MAIN -->
+        <main class="ml-64 flex-1">
+
+
+            <!-- HEADER -->
+            <header class="flex h-24 items-center justify-between border-b border-slate-200 bg-white px-8">
+
+                <div>
+
+                    <h1 class="text-2xl font-semibold text-slate-900">
+                        Batches & Slots
+                    </h1>
+
+                    <p class="mt-1 text-sm text-slate-500">
+                        Create assessment batches and manage candidate slots.
+                    </p>
+
+                </div>
+
+
+                <div class="flex items-center gap-3">
+
+                    <a href="setting.html" id="adminAvatar"
+                        class="group relative flex h-10 w-10  items-center justify-center overflow-hidden rounded-full bg-intern-light font-semibold text-intern-blue" title="Profile Settings">
+
+                        <img id="adminAvatarImage" src="" alt="Admin Avatar" class="hidden h-full w-full object-cover">
+
+                        <span id="adminAvatarInitial">A</span>
+
+                        <span
+                            class="absolute inset-0 hidden items-center justify-center bg-black/40 text-[9px] font-medium text-white group-hover:flex">
+                            Edit
+                        </span>
+
+                    </a>
+
+                    <input type="file" id="avatarUpload" accept="image/png,image/jpeg,image/jpg,image/webp"
+                        class="hidden">
+
+                    <div class="hidden">
+                        <p id="adminHeaderName" class="text-sm font-semibold text-slate-800">
+                            Admin
+                        </p>
+
+                        <p class="text-xs text-slate-500">
+                            Administrator
+                        </p>
+                    </div>
+
+                </div>
+
+            </header>
+
+
+
+            <!-- CONTENT -->
+            <section class="p-8">
+
+
+                <!-- TOP -->
+                <div class="mb-6">
+
+                    <h2 class="text-xl font-semibold text-slate-900">
+                        Batch Management
+                    </h2>
+
+                    <p class="mt-1 text-sm text-slate-500">
+                        Manage eligible candidates, batches and assessment slots.
+                    </p>
+
+                </div>
+
+
+
+                <!-- STATS -->
+                <div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
+
+                    <!-- Eligible Candidates -->
+                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                        <div class="flex items-center justify-between">
+
+                            <div>
+
+                                <p class="text-sm text-slate-500">
+                                    Eligible Candidates
+                                </p>
+
+                                <p id="eligibleCandidateCount" class="mt-2 text-2xl font-semibold text-slate-900">
+                                    0
+                                </p>
+
+                            </div>
+
+
+                            <div
+                                class="flex h-11 w-11 items-center justify-center rounded-xl bg-intern-light text-intern-blue">
+                                <i data-lucide="users" class="h-5 w-5"></i>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- Minimum Required -->
+                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                        <div class="flex items-center justify-between">
+
+                            <div>
+
+                                <p class="text-sm text-slate-500">
+                                    Minimum Candidates
+                                </p>
+
+                                <p class="mt-2 text-2xl font-semibold text-slate-900">
+                                    100
+                                </p>
+
+                            </div>
+
+
+                            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                <i data-lucide="users-round" class="h-5 w-5"></i>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- Available Slots -->
+                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                        <div class="flex items-center justify-between">
+
+                            <div>
+
+                                <p class="text-sm text-slate-500">
+                                    Available Slots
+                                </p>
+
+                                <p id="availableSlotCount" class="mt-2 text-2xl font-semibold text-slate-900">
+                                    0
+                                </p>
+
+                            </div>
+
+
+                            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                <i data-lucide="calendar-clock" class="h-5 w-5"></i>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- CREATE BATCH -->
+                <div class="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <div class="border-b border-slate-200 px-6 py-5">
+
+                        <h2 class="font-semibold text-slate-900">
+                            Create Batch
+                        </h2>
+
+                        <p class="mt-1 text-sm text-slate-500">
+                            Create a new assessment batch for eligible candidates.
+                        </p>
+
+                    </div>
+
+
+                    <form id="createBatchForm" class="grid grid-cols-1 gap-5 p-6 md:grid-cols-3">
+
+
+                        <!-- Batch Name -->
+                        <div>
+
+                            <label for="batchName" class="mb-2 block text-sm font-medium text-slate-700">
+                                Batch Name
+                            </label>
+
+                            <input id="batchName" type="text" placeholder="Example: Batch 01" required
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-intern-blue focus:ring-2 focus:ring-blue-100">
+
+                        </div>
+
+
+
+                        <!-- Date -->
+                        <div>
+
+                            <label for="batchDate" class="mb-2 block text-sm font-medium text-slate-700">
+                                Assessment Date
+                            </label>
+
+                            <input id="batchDate" type="date" required
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-intern-blue focus:ring-2 focus:ring-blue-100">
+
+                            <p id="batchDateMessage" class="mt-2 text-xs text-slate-500">
+                                Assessment can be scheduled only on Saturday or Sunday.
+                            </p>
+
+                        </div>
+
+
+
+                        <!-- Capacity -->
+                        <div>
+
+                            <label for="batchCapacity" class="mb-2 block text-sm font-medium text-slate-700">
+                                Candidate Capacity
+                            </label>
+
+                            <input id="batchCapacity" type="number" min="100" value="100" required
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-intern-blue focus:ring-2 focus:ring-blue-100">
+
+                        </div>
+
+
+
+                        <!-- Button -->
+                        <div class="md:col-span-3">
+
+                            <button type="submit" id="createBatchButton"
+                                class="rounded-xl bg-intern-blue px-5 py-3 text-sm font-medium text-white transition hover:bg-intern-dark">
+                                Create Batch
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+
+
+                <!-- SLOTS -->
+                <div class="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <div
+                        class="flex flex-col justify-between gap-3 border-b border-slate-200 px-6 py-5 md:flex-row md:items-center">
+
+                        <div>
+
+                            <h2 class="font-semibold text-slate-900">
+                                Assessment Slots
+                            </h2>
+
+                            <p class="mt-1 text-sm text-slate-500">
+                                Create and manage slots for each batch.
+                            </p>
+
+                        </div>
+
+
+                        <button id="createSlotButton" type="button"
+                            class="rounded-xl bg-intern-blue px-5 py-3 text-sm font-medium text-white hover:bg-intern-dark">
+                            + Create Slot
+                        </button>
+
+                    </div>
+
+
+
+                    <div class="overflow-x-auto">
+
+                        <table class="w-full min-w-[800px] text-left text-sm">
+
+                            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+
+                                <tr>
+
+                                    <th class="px-6 py-4">
+                                        Slot
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Time
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Capacity
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Allocated
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Available
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Status
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody id="slotsTableBody" class="divide-y divide-slate-100">
+
+                                <tr>
+
+                                    <td colspan="6" class="px-6 py-10 text-center text-sm text-slate-500">
+                                        No slots created yet.
+                                    </td>
+
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- CANDIDATE ALLOCATION -->
+                <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <div class="border-b border-slate-200 px-6 py-5">
+
+                        <h2 class="font-semibold text-slate-900">
+                            Candidate Allocation
+                        </h2>
+
+                        <p class="mt-1 text-sm text-slate-500">
+                            Allocate eligible candidates to assessment slots.
+                        </p>
+
+                    </div>
+
+
+                    <div class="overflow-x-auto">
+
+                        <table class="w-full min-w-[800px] text-left text-sm">
+
+                            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+
+                                <tr>
+
+                                    <th class="px-6 py-4">
+                                        Candidate
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Level
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Eligibility
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Assigned Slot
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Status
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody id="allocationTableBody">
+
+                                <tr>
+
+                                    <td colspan="5" class="px-6 py-10 text-center text-sm text-slate-500">
+                                        No eligible candidates available for allocation.
+                                    </td>
+
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            if (typeof lucide !== "undefined") {
+                lucide.createIcons();
+            }
+        });
+    </script>
+
+    <script src="../js/admin.js"></script>
+
+</body>
+
+</html>
