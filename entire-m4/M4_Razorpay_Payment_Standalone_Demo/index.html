@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>InternBoot | Registration Payment</title>
+<link rel="stylesheet" href="css/payment.css">
+</head>
+<body>
+<div class="page-shell">
+  <header class="topbar">
+    <a class="brand" href="#"><img src="assets/internboot-logo.png" alt="InternBoot"></a>
+    <div class="secure"><span class="shield">✓</span><span>Secure Demo Checkout</span></div>
+  </header>
+
+  <main class="checkout">
+    <section class="intro">
+      <div class="eyebrow">REGISTRATION PAYMENT</div>
+      <h1>Complete your assessment registration</h1>
+      <p>Make your registration payment to unlock enrollment eligibility for the InternBoot assessment.</p>
+      <div class="demo-note"><span>DEMO</span> Sandbox payment — no real money is charged.</div>
+    </section>
+
+    <div id="alert" class="alert hidden"></div>
+
+    <section class="grid">
+      <div class="card details-card">
+        <div class="card-title"><div><h2>Registration details</h2><p>Review your information before payment.</p></div><span class="status pending" id="statusBadge">Pending</span></div>
+        <div class="detail-list">
+          <div class="detail"><span>Candidate</span><strong id="candidateName">Loading…</strong></div>
+          <div class="detail"><span>Candidate ID</span><strong id="candidateId">—</strong></div>
+          <div class="detail"><span>Assessment</span><strong id="assessmentName">Loading…</strong></div>
+          <div class="detail"><span>Duration</span><strong id="duration">—</strong></div>
+          <div class="detail"><span>Questions</span><strong id="questions">—</strong></div>
+        </div>
+        <div class="steps">
+          <div class="step active"><b>1</b><span><strong>Payment</strong><small>Complete registration fee</small></span></div>
+          <div class="line"></div>
+          <div class="step"><b>2</b><span><strong>Verification</strong><small>Server verifies transaction</small></span></div>
+          <div class="line"></div>
+          <div class="step"><b>3</b><span><strong>Enrollment</strong><small>Eligibility is confirmed</small></span></div>
+        </div>
+      </div>
+
+      <aside class="card payment-card">
+        <div class="pay-header"><div class="pay-icon">₹</div><div><h2>Payment summary</h2><p>InternBoot Assessment</p></div></div>
+        <div class="amount-row"><span>Registration fee</span><strong id="amount">₹—</strong></div>
+        <div class="amount-row muted"><span>Processing fee</span><span>₹0</span></div>
+        <div class="total"><span>Total payable</span><strong id="total">₹—</strong></div>
+        <button id="payBtn" class="pay-btn" disabled><span>Pay Registration Fee</span><span>→</span></button>
+        <div class="trust"><span>✓</span> Verified by the InternBoot server</div>
+        <p class="fine">This is a simulated sandbox transaction for M4 development/testing. No external payment provider is connected.</p>
+      </aside>
+    </section>
+
+    <section id="successCard" class="success-card hidden">
+      <div class="success-icon">✓</div>
+      <div><div class="eyebrow">PAYMENT VERIFIED</div><h2>Registration payment completed</h2><p>Your payment was verified server-side and enrollment eligibility has been updated.</p></div>
+      <div class="success-meta"><div><span>Transaction</span><strong id="successRef">—</strong></div><div><span>Status</span><strong>Success</strong></div></div>
+    </section>
+  </main>
+  <footer>© 2026 InternBoot · Payment Module · Demo / Sandbox Mode</footer>
+</div>
+<script src="js/payment-gateway.js"></script>
+</body>
+</html>
