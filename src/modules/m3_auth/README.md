@@ -75,9 +75,13 @@ If the navbar doesn't already render the logo, add inside `navbar.php`:
 | POST | `/api/auth/logout.php` | — | 200 `{status:"success"}` | — |
 
 ## For M4/M5 (handoff)
-Once a candidate registers, `candidates.id` is what you'll use as the FK in
-`enrollments.candidate_id`. You'll need `$_SESSION['user_id']` (the
-`users.id`) to look up the matching `candidates.id` — there's no
-`get_candidate_id_by_user_id()` helper in this module yet since it wasn't
-needed for register/login; add one in your own module or ask M3 to expose it
-if you'd rather keep the query centralized.
+
+Once a candidate registers, `candidates.id` is what you'll use as the FK in `enrollments.candidate_id`.
+
+**Update:** `$_SESSION['candidate_id']` is now set directly at login (alongside `user_id`, `role`, and `full_name`), so you no longer need to look it up yourself — just read it straight from the session:
+
+```php
+$candidateId = $_SESSION['candidate_id'] ?? null;
+```
+
+Note: this will be `null` for admin accounts, since admins have no matching row in `candidates`.
