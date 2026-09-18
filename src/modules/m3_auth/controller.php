@@ -9,7 +9,7 @@ require_once __DIR__ . '/service.php';
 function handle_register_request(array $data, mysqli $conn): void {
     $fullName = sanitize_string($data['full_name'] ?? '');
     $email    = sanitize_string($data['email'] ?? '');
-    $phone    = sanitize_string($data['phone'] ?? '');
+    $phone = normalize_phone(sanitize_string($data['phone'] ?? ''));
     $password = (string) ($data['password'] ?? '');
     $confirm  = (string) ($data['confirm_password'] ?? '');
     $role     = sanitize_string($data['role'] ?? 'candidate');

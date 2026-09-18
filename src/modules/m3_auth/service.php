@@ -3,6 +3,31 @@
 
 require_once __DIR__ . '/queries.php';
 
+// Local email validator — intentionally NOT in shared core/validator.php,
+// so this module never breaks if that file changes upstream.
+if (!function_exists('is_valid_email')) {
+    function is_valid_email(string $email): bool {
+        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+    }
+}
+
+// Strips spaces/dashes/parentheses and a leading country code (91 / 0091 / trunk 0),
+// so every valid input format collapses to the same 10-digit number before
+// validation, duplicate-checking, and storage.
+function normalize_phone(string $raw): string {
+    $digits = preg_replace('/\D+/', '', $raw);
+
+    if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
+        $digits = substr($digits, 2);
+    } elseif (strlen($digits) === 14 && str_starts_with($digits, '0091')) {
+        $digits = substr($digits, 4);
+    } elseif (strlen($digits) === 11 && str_starts_with($digits, '0')) {
+        $digits = substr($digits, 1);
+    }
+
+    return $digits;
+}
+
 /**
  * Registers a new candidate: creates the `users` row and the `candidates`
  * row together. Password is hashed here — never stored plain text.
