@@ -379,25 +379,4 @@ function get_available_slots_by_assessment(int $assessmentId, mysqli $conn): arr
 
     return $rows;
 }
-
-/**
- * Fetches batch details by ID.
- */
-function get_batch_by_id(int $batchId, mysqli $conn): ?array {
-    $sql = "SELECT id, batch_number, assessment_id, creation_date, created_at 
-            FROM batches 
-            WHERE id = ? 
-            LIMIT 1";
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
-        throw new Exception("Failed to prepare get batch query: " . (@$conn->error ?: 'query error'));
-    }
-    $stmt->bind_param("i", $batchId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $row = $result->fetch_assoc();
-    $stmt->close();
-
-    return $row ?: null;
-}
 ?>

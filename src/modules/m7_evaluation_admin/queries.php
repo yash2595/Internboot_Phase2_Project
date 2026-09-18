@@ -583,3 +583,17 @@ function create_exam_slot(mysqli $conn,int $batchId,string $startTime,string $en
     $stmt->close();
     return ['slot_id'=>$id,'batch_id'=>$batchId,'exam_date'=>$schedule['exam_date'],'start_time'=>$startTime,'end_time'=>$endTime,'capacity'=>$capacity];
 }
+
+function create_admin_log(mysqli $conn, ?int $userId, string $action, ?string $details = null): void
+{
+    $stmt = $conn->prepare(
+        'INSERT INTO admin_logs (user_id, action, details, created_at) VALUES (?, ?, ?, NOW())'
+    );
+    if (!$stmt) {
+        throw new Exception("Failed to prepare admin log insert query: " . (@$conn->error ?: 'query error'));
+    }
+    $stmt->bind_param('iss', $userId, $action, $details);
+    $stmt->execute();
+    $stmt->close();
+}
+

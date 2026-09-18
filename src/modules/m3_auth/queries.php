@@ -17,7 +17,7 @@
 function find_user_by_email(mysqli $conn, string $email): ?array {
     $stmt = $conn->prepare(
         'SELECT u.id, u.email, u.password, u.role, u.is_active,
-                c.full_name, c.phone
+                c.id AS candidate_id, c.full_name, c.phone
          FROM users u
          LEFT JOIN candidates c ON c.user_id = u.id
          WHERE u.email = ?
