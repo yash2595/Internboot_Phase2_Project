@@ -43,14 +43,9 @@ ALTER TABLE `enrollments`
 ALTER TABLE `attempts` 
   MODIFY COLUMN `exam_slot_id` BIGINT UNSIGNED NOT NULL;
 
--- Step 2.2: Drop existing FK constraint safely if exists and re-add with RESTRICT
-ALTER TABLE `attempts` 
-  DROP FOREIGN KEY `fk_attempts_slot`;
-
-ALTER TABLE `attempts` 
-  ADD CONSTRAINT `fk_attempts_slot` 
-  FOREIGN KEY (`exam_slot_id`) REFERENCES `exam_slots` (`id`) 
-  ON DELETE RESTRICT ON UPDATE CASCADE;
+-- Step 2.2: Ensure fk_attempts_slot uses RESTRICT (already present in base schema.sql)
+-- Note: Re-adding is omitted here as fk_attempts_slot (ON DELETE RESTRICT ON UPDATE CASCADE)
+-- is already established in base schema.sql.
 
 
 -- ============================================================================
@@ -90,27 +85,11 @@ DELIMITER ;
 -- ============================================================================
 -- SECTION 4: results & levels Range Check Constraints
 -- Purpose: Enforce 0.00 to 100.00 percentage bounds and min <= max logic
+-- Note: chk_results_percentage, chk_levels_min_percentage, chk_levels_max_percentage,
+-- and chk_levels_range_valid are already defined in base schema.sql.
 -- ============================================================================
 
--- Step 4.1: Results percentage validation (0 - 100)
-ALTER TABLE `results` 
-  ADD CONSTRAINT `chk_results_percentage` 
-  CHECK (`percentage` BETWEEN 0.00 AND 100.00);
-
--- Step 4.2: Levels min_percentage validation (0 - 100)
-ALTER TABLE `levels` 
-  ADD CONSTRAINT `chk_levels_min_percentage` 
-  CHECK (`min_percentage` BETWEEN 0.00 AND 100.00);
-
--- Step 4.3: Levels max_percentage validation (0 - 100)
-ALTER TABLE `levels` 
-  ADD CONSTRAINT `chk_levels_max_percentage` 
-  CHECK (`max_percentage` BETWEEN 0.00 AND 100.00);
-
--- Step 4.4: Levels range order validation (min <= max)
-ALTER TABLE `levels` 
-  ADD CONSTRAINT `chk_levels_range_valid` 
-  CHECK (`min_percentage` <= `max_percentage`);
+-- Check constraints are defined in base schema.sql. No action required for fresh installs.
 
 
 -- ============================================================================

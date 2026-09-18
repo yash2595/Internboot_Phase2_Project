@@ -7,7 +7,26 @@ require_once __DIR__ . '/validator.php';
 
 $appEnv = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
 error_reporting(E_ALL);
-ini_set('display_errors', $appEnv === 'development' ? '1' : '0');
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+set_exception_handler(function (Throwable $e): void {
+    error_log(sprintf("[%s] Unhandled Exception: %s in %s on line %d\nStack trace:\n%s", 
+        date('Y-m-d H:i:s'), $e->getMessage(), $e->getFile(), $e->getLine(), $e->getTraceAsString()));
+    
+    if (!headers_sent()) {
+        send_json_response('error', 'An internal server error occurred.', null, 500);
+    }
+});
+
+set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline): bool {
+    if (!(error_reporting() & $errno)) {
+        return false;
+    }
+    error_log(sprintf("[%s] PHP Error [%d]: %s in %s on line %d", 
+        date('Y-m-d H:i:s'), $errno, $errstr, $errfile, $errline));
+    return true;
+});
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start([
