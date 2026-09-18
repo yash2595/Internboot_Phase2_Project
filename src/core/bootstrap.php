@@ -75,9 +75,6 @@ function require_admin_access(mysqli $conn): void
 
     if (in_array($role, ['admin', 'staff'], true)) return;
 
-    /* Development mode deliberately permits the standalone M7 UI before M3 auth is merged. */
-    if ($appEnv === 'development' && $userId === 0 && $role === null) return;
-
     send_json_response('error', 'Administrator access required.', null, 403);
 }
 
