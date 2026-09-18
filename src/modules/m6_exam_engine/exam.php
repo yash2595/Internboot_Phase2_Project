@@ -893,20 +893,17 @@ async function initializeExam() {
             `api/start_exam.php?attempt_id=${attemptId}`
         );
 
-        const startData = await startResponse.json();
+        const startRaw = await startResponse.json();
+        const startPayload = startRaw.data || startRaw;
+        const isStartSuccess = startRaw.status === 'success' || startRaw.success === true || startPayload.success === true;
 
-
-        if (!startData.success) {
-
-            showError(startData.message);
-
+        if (!isStartSuccess) {
+            showError(startRaw.message || "Failed to start assessment");
             return;
         }
 
-
         remainingSeconds =
-            Number(startData.remaining_seconds);
-
+            Number(startPayload.remaining_seconds);
 
         /*
          * Step 2:
@@ -916,20 +913,18 @@ async function initializeExam() {
             `api/get_questions.php?attempt_id=${attemptId}`
         );
 
-        const questionData =
+        const questionRaw =
             await questionResponse.json();
+        const questionPayload = questionRaw.data || questionRaw;
+        const isQuestionSuccess = questionRaw.status === 'success' || questionRaw.success === true || questionPayload.success === true;
 
-
-        if (!questionData.success) {
-
-            showError(questionData.message);
-
+        if (!isQuestionSuccess) {
+            showError(questionRaw.message || "Failed to load questions");
             return;
         }
 
-
         questions =
-            questionData.questions;
+            questionPayload.questions || [];
 
         questions.forEach(question => {
             if (question.selected_option_id !== null) {
@@ -1199,8 +1194,9 @@ async function syncCurrentAnswers() {
             );
 
             const data = await response.json();
+            const isAutosaveSuccess = data.status === 'success' || data.success === true;
 
-            if (!data.success) {
+            if (!isAutosaveSuccess) {
                 console.warn(
                     "Autosave failed:",
                     data.message
@@ -1678,9 +1674,9 @@ async function saveAnswer(
 
         const data =
             await response.json();
+        const isSaveSuccess = data.status === 'success' || data.success === true;
 
-
-        if (!data.success) {
+        if (!isSaveSuccess) {
 
             saveStatus.className =
                 "save-status error";
@@ -1843,9 +1839,9 @@ async function submitExam(
 
         const data =
             await response.json();
+        const isSubmitSuccess = data.status === 'success' || data.success === true;
 
-
-        if (data.success) {
+        if (isSubmitSuccess) {
 
             alert(
                 autoSubmit
