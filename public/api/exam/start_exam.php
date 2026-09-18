@@ -16,6 +16,24 @@ try {
      * M5 shares candidate_id through the PHP session.
      */
     if (
+        (!isset($_SESSION['candidate_id']) || !is_numeric($_SESSION['candidate_id'])) &&
+        isset($_SESSION['user_id']) && is_numeric($_SESSION['user_id']) &&
+        isset($conn)
+    ) {
+        $userStmt = $conn->prepare("SELECT id FROM candidates WHERE user_id = ? LIMIT 1");
+        if ($userStmt) {
+            $uId = (int)$_SESSION['user_id'];
+            $userStmt->bind_param("i", $uId);
+            $userStmt->execute();
+            $userRes = $userStmt->get_result()->fetch_assoc();
+            $userStmt->close();
+            if ($userRes) {
+                $_SESSION['candidate_id'] = (int)$userRes['id'];
+            }
+        }
+    }
+
+    if (
         !isset($_SESSION['candidate_id']) ||
         !is_numeric($_SESSION['candidate_id'])
     ) {
@@ -66,13 +84,13 @@ try {
 
         FROM attempts a
 
-        INNER JOIN exam_slots es
+        LEFT JOIN exam_slots es
             ON es.id = a.exam_slot_id
 
-        INNER JOIN exam_schedules sch
+        LEFT JOIN exam_schedules sch
             ON sch.id = es.exam_schedule_id
 
-        INNER JOIN assessments ass
+        LEFT JOIN assessments ass
             ON ass.id = a.assessment_id
 
         WHERE a.id = ?
