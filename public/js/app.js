@@ -17,7 +17,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const payload = await response.json();
 
-        if (!response.ok || !payload.success || !payload.data) {
+        const isSuccess = payload.status === "success";
+        if (!response.ok || !isSuccess || !payload.data) {
             throw new Error(payload.message || "Unable to fetch dashboard data.");
         }
 
@@ -32,6 +33,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         fillSection("certificate", source.certificate);
 
         updateAvatar(source.candidate?.name);
+        updateStatusCards(source);
         updateLearningJourney(source);
     } catch (error) {
         console.error("Dashboard API Error:", error);
@@ -69,6 +71,15 @@ function updateAvatar(name) {
         .join("");
 
     avatar.textContent = initials || "--";
+}
+
+function updateStatusCards(source) {
+    document.querySelectorAll("[data-status]").forEach((el) => {
+        const parts = el.dataset.status.split(".");
+        if (parts.length === 2 && source[parts[0]] && source[parts[0]][parts[1]] !== undefined) {
+            el.textContent = source[parts[0]][parts[1]];
+        }
+    });
 }
 
 function updateLearningJourney(source) {

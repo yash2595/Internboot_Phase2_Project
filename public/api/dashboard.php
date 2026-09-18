@@ -47,8 +47,10 @@ function resolve_candidate_id(array $input = []): int {
 function get_candidate(int $candidateId): ?array {
     global $conn;
     $stmt = $conn->prepare(
-        'SELECT id, user_id, full_name, phone, profile_details, created_at
-         FROM candidates WHERE id = ? LIMIT 1'
+        'SELECT c.id, c.user_id, c.full_name, c.phone, c.profile_details, c.created_at, u.email
+         FROM candidates c
+         LEFT JOIN users u ON u.id = c.user_id
+         WHERE c.id = ? LIMIT 1'
     );
     $stmt->bind_param('i', $candidateId);
     $stmt->execute();
@@ -249,7 +251,8 @@ try {
 
     send_json_response('success', 'Dashboard data retrieved successfully', [
         'candidate' => [
-            'name' => $candidate['full_name'], 'email' => '—',
+            'name' => $candidate['full_name'],
+            'email' => $candidate['email'] ?? '—',
             'phone' => $candidate['phone'] ?: '—',
             'dateOfBirth' => $profile['dateOfBirth'] ?? $profile['date_of_birth'] ?? '—',
             'gender' => $profile['gender'] ?? '—',

@@ -33,7 +33,10 @@ function evaluate_attempt(mysqli $conn, int $attemptId, bool $generateCertificat
             if($timerRow && (int)$timerRow['timer_expired']===1){
                 // Timer has run out but M6 hasn't lazy-expired it yet.
                 // Auto-expire here so grading is fair and consistent with M6 behaviour.
-                $conn->query("UPDATE attempts SET status='expired', submitted_at=NOW() WHERE id={$attemptId} AND status='in_progress'");
+                $stmt = $conn->prepare("UPDATE attempts SET status='expired', submitted_at=NOW() WHERE id=? AND status='in_progress'");
+                $stmt->bind_param('i', $attemptId);
+                $stmt->execute();
+                $stmt->close();
                 // Re-read the attempt so $attempt['status'] reflects the new state downstream.
                 $attempt=get_attempt_for_update($conn,$attemptId);
             } else {

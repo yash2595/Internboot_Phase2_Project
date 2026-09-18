@@ -63,10 +63,18 @@ MAIL_FROM_NAME="InternBoot"
 > ⚠️ **STRICT WARNING:** Never commit `.env` to Git! It is excluded by `.gitignore`.
 
 ### Step 3: Serve the Application
-Point the PHP built-in web server to the `/public` directory:
+The web server's **document root MUST point to the `public/` folder**, never the repository root.
+
+**PHP Built-in Server (Recommended for local dev):**
 ```bash
+# Run from repository root:
 php -S localhost:8000 -t public
 ```
+
+> ⚠️ **CRITICAL: Document Root Requirement**
+> - **PHP CLI:** Always specify `-t public`. Running `php -S localhost:8000` without `-t public` serves from the repository root, breaking all stylesheets (`/css/style.css`), scripts, and API routes.
+> - **XAMPP / Apache / Laragon / Nginx:** Configure your virtual host `DocumentRoot` (or site root) to the absolute path of `<repo>/public`, not the repo root.
+> - **Troubleshooting:** If pages load unstyled with huge icons, your document root is pointed at the wrong folder — it must be public/, not the repo root.
 
 ### Accessing Interfaces & Diagnostic Endpoints:
 - **Candidate Interface:** `http://localhost:8000/dashboard.html` (Registration: `/register.php`, Login: `/login.php`)
