@@ -67,10 +67,8 @@ function handle_book_slot_request(array $input, mysqli $conn): void {
  */
 function handle_auto_batch_request(array $input, mysqli $conn): void {
     // RBAC Security Check: Admin Access Only
-    if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-        send_json_response('error', 'Unauthorized: admin access required', null, 403);
-        return;
-    }
+    require_admin_access($conn);
+
 
     $assessmentId = isset($input['assessment_id']) ? (int)$input['assessment_id'] : 0;
     $customThreshold = isset($input['threshold']) && is_numeric($input['threshold']) ? (int)$input['threshold'] : null;

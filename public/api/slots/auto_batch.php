@@ -4,10 +4,9 @@
 // Require core bootstrap initializer
 require_once __DIR__ . '/../../../src/core/bootstrap.php';
 
-// RBAC Security Check: Admin Access Only (Fix #3 per Tech Lead review)
-if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    send_json_response('error', 'Unauthorized: admin access required', null, 403);
-}
+// RBAC Security Check: Admin Access Only
+require_admin_access($conn);
+
 
 require_once __DIR__ . '/../../../src/modules/m5_batch_slots/controller.php';
 

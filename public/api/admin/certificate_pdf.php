@@ -37,14 +37,14 @@ try {
     require_once __DIR__ . '/../../../src/modules/m7_evaluation_admin/service.php';
     require_once __DIR__ . '/../../../src/modules/m7_evaluation_admin/pdf.php';
 
-    require_admin_access_or_throw($conn, 'Administrator access required to view or download certificates.');
-
+    require_admin_access_or_throw($conn);
 
     $resultId = require_positive_int($_GET['result_id'] ?? null, 'result_id');
     $data = generate_certificate($conn, $resultId);
     output_certificate_pdf($data);
-} catch (RuntimeException $e) {
+} catch (AdminAccessDeniedException $e) {
     render_certificate_error_page($e->getMessage(), 403);
+
 } catch (InvalidArgumentException $e) {
     render_certificate_error_page($e->getMessage(), 422);
 } catch (Throwable $e) {

@@ -58,7 +58,9 @@ if (session_status() === PHP_SESSION_NONE) {
     ]);
 }
 
-function is_admin_authenticated(mysqli $conn): bool
+class AdminAccessDeniedException extends RuntimeException {}
+
+function resolve_admin_role(mysqli $conn): ?string
 {
     $role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? null;
     $userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
@@ -72,6 +74,12 @@ function is_admin_authenticated(mysqli $conn): bool
         if ($user && (int)$user['is_active'] === 1) $role = $user['role'];
     }
 
+    return $role;
+}
+
+function is_admin_authenticated(mysqli $conn): bool
+{
+    $role = resolve_admin_role($conn);
     return in_array($role, ['admin', 'staff'], true);
 }
 
@@ -86,8 +94,9 @@ function require_admin_access_or_throw(mysqli $conn, string $message = 'Administ
 {
     if (is_admin_authenticated($conn)) return;
 
-    throw new RuntimeException($message);
+    throw new AdminAccessDeniedException($message);
 }
+
 
 
 function csrf_token(): string
