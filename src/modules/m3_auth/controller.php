@@ -115,9 +115,14 @@ function handle_login_request(array $data, mysqli $conn): void {
 
     session_regenerate_id(true);
 
-    $_SESSION['user_id']   = $result['user']['id'];
-    $_SESSION['role']      = $result['user']['role'];
-    $_SESSION['full_name'] = $result['user']['full_name'] ?? '';
+    $_SESSION['user_id']      = $result['user']['id'];
+    $_SESSION['role']         = $result['user']['role'];
+    $_SESSION['full_name']    = $result['user']['full_name'] ?? '';
+
+    if ($result['user']['role'] === 'candidate' && empty($result['user']['candidate_id'])) {
+        error_log("Data integrity issue: candidate-role user {$result['user']['id']} has no candidates row");
+    }
+    $_SESSION['candidate_id'] = $result['user']['candidate_id'] ?? null;
 
     send_json_response('success', 'Login successful.', [
         'role'     => $result['user']['role'],
