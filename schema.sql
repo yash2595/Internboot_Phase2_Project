@@ -382,6 +382,26 @@ CREATE TABLE `settings` (
   INDEX `idx_settings_key` (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ----------------------------------------------------------------------------
+-- Table 20: email_verifications
+-- Purpose: Staging table for pending registrations & OTP email verification (M3 Auth)
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `email_verifications`;
+CREATE TABLE `email_verifications` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `email` VARCHAR(255) NOT NULL,
+  `otp_code` VARCHAR(10) NOT NULL,
+  `full_name` VARCHAR(150) NOT NULL,
+  `phone` VARCHAR(20) NOT NULL,
+  `password_hash` VARCHAR(255) NOT NULL,
+  `role` ENUM('candidate', 'admin', 'staff') NOT NULL DEFAULT 'candidate',
+  `is_used` TINYINT(1) NOT NULL DEFAULT 0,
+  `expires_at` DATETIME NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_email_verifications_email` (`email`),
+  INDEX `idx_email_verifications_lookup` (`email`, `otp_code`, `is_used`, `expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Re-enable foreign key checks after table creation
 SET FOREIGN_KEY_CHECKS = 1;
 

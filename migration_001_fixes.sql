@@ -110,3 +110,25 @@ SELECT
 FROM levels l1
 JOIN levels l2 ON l1.id <> l2.id
 WHERE (l1.min_percentage <= l2.max_percentage AND l1.max_percentage >= l2.min_percentage);
+
+
+-- ============================================================================
+-- SECTION 6: email_verifications Table (M3 Auth Pending Registrations)
+-- Purpose: Staging table for pending registrations & OTP email verification
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS `email_verifications` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `email` VARCHAR(255) NOT NULL,
+  `otp_code` VARCHAR(10) NOT NULL,
+  `full_name` VARCHAR(150) NOT NULL,
+  `phone` VARCHAR(20) NOT NULL,
+  `password_hash` VARCHAR(255) NOT NULL,
+  `role` ENUM('candidate', 'admin', 'staff') NOT NULL DEFAULT 'candidate',
+  `is_used` TINYINT(1) NOT NULL DEFAULT 0,
+  `expires_at` DATETIME NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_email_verifications_email` (`email`),
+  INDEX `idx_email_verifications_lookup` (`email`, `otp_code`, `is_used`, `expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
