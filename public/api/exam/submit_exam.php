@@ -145,5 +145,6 @@ try {
     ], 200);
 
 } catch (Throwable $e) {
-    send_json_response('error', 'Internal server error: ' . $e->getMessage(), null, 500);
+    error_log('submit_exam error: ' . $e->getMessage());
+    send_json_response('error', 'Internal server error', null, 500);
 }

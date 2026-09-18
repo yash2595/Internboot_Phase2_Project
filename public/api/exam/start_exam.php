@@ -179,11 +179,21 @@ try {
 
         $updateStmt->execute();
 
-        /*
-         * Re-read the values that were just committed.
-         */
-        $attempt['start_time'] = $startTime;
-        $attempt['end_time'] = $endTime;
+        if ($updateStmt->affected_rows === 1) {
+            $attempt['start_time'] = $startTime;
+            $attempt['end_time'] = $endTime;
+        } else {
+            // dusri request jeet gayi race — DB se actual values lo
+            $refetch = $conn->prepare('SELECT start_time, end_time FROM attempts WHERE id = ? AND candidate_id = ?');
+            $refetch->bind_param('ii', $attemptId, $candidateId);
+            $refetch->execute();
+            $fresh = $refetch->get_result()->fetch_assoc();
+            $refetch->close();
+            if ($fresh) {
+                $attempt['start_time'] = $fresh['start_time'];
+                $attempt['end_time'] = $fresh['end_time'];
+            }
+        }
 
         $updateStmt->close();
     }
@@ -264,5 +274,6 @@ try {
     ], 200);
 
 } catch (Throwable $e) {
-    send_json_response('error', 'Internal server error: ' . $e->getMessage(), null, 500);
+    error_log('start_exam error: ' . $e->getMessage());
+    send_json_response('error', 'Internal server error', null, 500);
 }
