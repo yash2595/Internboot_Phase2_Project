@@ -67,7 +67,7 @@ $pageTitle = 'Register — InternBoot';
           </div>
           <div class="ib-form-row">
             <label for="phone">Phone Number</label>
-            <input type="tel" class="ib-input" id="phone" name="phone" maxlength="10" autocomplete="tel" required>
+            <input type="tel" class="ib-input" id="phone" name="phone" maxlength="17" placeholder="e.g. +91 98765 43210" autocomplete="tel" required>
           </div>
           <div class="ib-form-row">
             <label for="password">Password</label>
