@@ -20,6 +20,8 @@ function demo_mode(): bool {
 function resolve_candidate_id(array $input = []): int {
     global $conn;
 
+    $hasSession = isset($_SESSION['candidate_id']) || isset($_SESSION['user_id']);
+
     if (isset($_SESSION['candidate_id']) && ctype_digit((string)$_SESSION['candidate_id'])) {
         return (int)$_SESSION['candidate_id'];
     }
@@ -34,7 +36,9 @@ function resolve_candidate_id(array $input = []): int {
         if ($row) return (int)$row['id'];
     }
 
-    if (demo_mode()) {
+    $appEnv = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
+
+    if (!$hasSession && demo_mode() && $appEnv !== 'production') {
         $cid = $input['candidate_id'] ?? $_GET['candidate_id'] ?? 1;
         if (ctype_digit((string)$cid)) return (int)$cid;
     }
@@ -187,6 +191,11 @@ try {
 
             if (!$p) throw new RuntimeException('Payment record not found.');
 
+            $expectedCandidateId = resolve_candidate_id($input);
+            if ((int)$p['candidate_id'] !== $expectedCandidateId) {
+                throw new RuntimeException('Payment candidate does not match authenticated candidate.');
+            }
+
             if ($p['status'] !== 'success') {
                 $s = $conn->prepare("UPDATE payments SET status = 'success', payment_date = NOW() WHERE id = ? AND status = 'pending'");
                 $s->bind_param('i', $paymentId);
@@ -205,7 +214,8 @@ try {
             $conn->commit();
         } catch (Throwable $e) {
             $conn->rollback();
-            send_json_response('error', 'Server verification error: ' . $e->getMessage(), null, 500);
+            error_log('Payment verification error: ' . $e->getMessage());
+            send_json_response('error', 'An internal error occurred during payment verification.', null, 500);
         }
 
         unset($_SESSION['m4_demo_payment']);
@@ -224,5 +234,6 @@ try {
     send_json_response('error', 'Unsupported action.', null, 400);
 
 } catch (Throwable $e) {
-    send_json_response('error', 'Server error: ' . $e->getMessage(), null, 500);
+    error_log('Payment system error: ' . $e->getMessage());
+    send_json_response('error', 'An unexpected server error occurred.', null, 500);
 }
