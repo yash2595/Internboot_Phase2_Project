@@ -115,9 +115,10 @@ function handle_login_request(array $data, mysqli $conn): void {
 
     session_regenerate_id(true);
 
-    $_SESSION['user_id']   = $result['user']['id'];
-    $_SESSION['role']      = $result['user']['role'];
-    $_SESSION['full_name'] = $result['user']['full_name'] ?? '';
+    $_SESSION['user_id']      = $result['user']['id'];
+    $_SESSION['role']         = $result['user']['role'];
+    $_SESSION['full_name']    = $result['user']['full_name'] ?? '';
+    $_SESSION['candidate_id'] = $result['user']['candidate_id'] ?? null;
 
     send_json_response('success', 'Login successful.', [
         'role'     => $result['user']['role'],
