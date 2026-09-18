@@ -8,11 +8,11 @@
             <ul class="navbar-nav ms-auto">
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard.php">Dashboard</a>
+                        <a class="nav-link" href="/dashboard.html">Dashboard</a>
                     </li>
                     <?php if (($_SESSION['role'] ?? '') === 'admin'): ?>
                         <li class="nav-item">
-                            <a class="nav-link text-warning" href="/admin/dashboard.php">Admin Panel</a>
+                            <a class="nav-link text-warning" href="/admin/index.html">Admin Panel</a>
                         </li>
                     <?php endif; ?>
                     <li class="nav-item">

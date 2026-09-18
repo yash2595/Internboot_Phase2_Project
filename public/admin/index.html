@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Panel — InternBoot</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: #0f1117; color: #e2e8f0;
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 2rem;
+  }
+  .card {
+    background: #1a1f2e; border: 1px solid #2d3748; border-radius: 16px;
+    padding: 2.5rem 3rem; max-width: 700px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .badge-admin {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: #1a3a2a; border: 1px solid #22c55e; color: #4ade80;
+    font-size: .75rem; font-weight: 600; letter-spacing: .05em;
+    text-transform: uppercase; padding: .35rem .85rem;
+    border-radius: 999px; margin-bottom: 1.5rem;
+  }
+  .badge-admin::before { content: "●"; font-size: .6rem; }
+  h1 { font-size: 1.75rem; font-weight: 700; color: #f8fafc; margin-bottom: .5rem; }
+  .subtitle { color: #94a3b8; font-size: .95rem; margin-bottom: 2rem; line-height: 1.6; }
+  .notice {
+    background: #1e2535; border-left: 4px solid #f59e0b;
+    border-radius: 0 8px 8px 0; padding: 1rem 1.25rem;
+    margin-bottom: 2rem; font-size: .88rem; color: #fbbf24; line-height: 1.6;
+  }
+  .notice strong { color: #fde68a; }
+  h2 { font-size: .85rem; font-weight: 600; text-transform: uppercase;
+       letter-spacing: .08em; color: #64748b; margin-bottom: 1rem; }
+  .api-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); gap: .75rem; margin-bottom: 2rem; }
+  .api-link {
+    display: flex; flex-direction: column; background: #0f1117;
+    border: 1px solid #2d3748; border-radius: 10px; padding: .9rem 1.1rem;
+    text-decoration: none; transition: border-color .15s, background .15s;
+  }
+  .api-link:hover { border-color: #6366f1; background: #13151f; }
+  .api-link .api-label { color: #c7d2fe; font-size: .88rem; font-weight: 600; }
+  .api-link .api-path  { color: #4b5563; font-size: .73rem; margin-top: .25rem; font-family: monospace; }
+  .logout-row { display: flex; justify-content: flex-end; margin-top: .5rem; }
+  .btn-logout {
+    background: transparent; border: 1px solid #ef4444; color: #f87171;
+    font-size: .85rem; padding: .5rem 1.25rem; border-radius: 8px;
+    cursor: pointer; text-decoration: none; transition: background .15s, color .15s;
+  }
+  .btn-logout:hover { background: #ef4444; color: #fff; }
+  .session-info { font-size: .8rem; color: #475569; margin-top: 1.5rem; text-align: right; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge-admin">Admin Authenticated</div>
+  <h1>InternBoot Admin Panel</h1>
+  <p class="subtitle">
+    You are logged in as an administrator. The full admin dashboard UI is a
+    separate deliverable that has not been built yet — this page is a
+    temporary landing point so that admin login does not end in a 404.
+  </p>
+  <div class="notice">
+    <strong>Stop-gap page:</strong> The M7 Evaluation &amp; Admin REST API is
+    fully implemented at <code>/api/admin/evaluate.php</code>. A dedicated
+    admin frontend (candidates table, evaluation trigger, certificate
+    generation, settings editor, etc.) needs to be built to consume it.
+  </div>
+  <h2>Available Admin API Endpoints</h2>
+  <div class="api-grid">
+    <a class="api-link" href="/api/admin/evaluate.php?action=dashboard" target="_blank">
+      <span class="api-label">📊 Dashboard Stats</span>
+      <span class="api-path">?action=dashboard</span>
+    </a>
+    <a class="api-link" href="/api/admin/evaluate.php?action=candidates" target="_blank">
+      <span class="api-label">👥 Candidates</span>
+      <span class="api-path">?action=candidates</span>
+    </a>
+    <a class="api-link" href="/api/admin/evaluate.php?action=results" target="_blank">
+      <span class="api-label">📋 Results</span>
+      <span class="api-path">?action=results</span>
+    </a>
+    <a class="api-link" href="/api/admin/evaluate.php?action=pending_attempts" target="_blank">
+      <span class="api-label">⏳ Pending Attempts</span>
+      <span class="api-path">?action=pending_attempts</span>
+    </a>
+    <a class="api-link" href="/api/admin/evaluate.php?action=certificates" target="_blank">
+      <span class="api-label">🎓 Certificates</span>
+      <span class="api-path">?action=certificates</span>
+    </a>
+    <a class="api-link" href="/api/admin/evaluate.php?action=batches" target="_blank">
+      <span class="api-label">📦 Batches</span>
+      <span class="api-path">?action=batches</span>
+    </a>
+    <a class="api-link" href="/api/admin/evaluate.php?action=settings" target="_blank">
+      <span class="api-label">⚙️ Settings</span>
+      <span class="api-path">?action=settings</span>
+    </a>
+    <a class="api-link" href="/api/admin/evaluate.php?action=placements" target="_blank">
+      <span class="api-label">🏢 Placements</span>
+      <span class="api-path">?action=placements</span>
+    </a>
+  </div>
+  <div class="logout-row">
+    <a class="btn-logout" href="/api/auth/logout.php">Log out</a>
+  </div>
+  <div class="session-info" id="sessionInfo">Loading session…</div>
+</div>
+<script>
+(async () => {
+  try {
+    const r = await fetch("/api/admin/evaluate.php?action=dashboard", { credentials: "include" });
+    if (r.status === 401 || r.status === 403) { window.location.href = "/login.php"; return; }
+    document.getElementById("sessionInfo").textContent =
+      "Session active · " + new Date().toLocaleTimeString();
+  } catch (_) {
+    document.getElementById("sessionInfo").textContent = "Could not verify session with server.";
+  }
+})();
+</script>
+</body>
+</html>

@@ -126,7 +126,7 @@ function handle_login_request(array $data, mysqli $conn): void {
 
     send_json_response('success', 'Login successful.', [
         'role'     => $result['user']['role'],
-        'redirect' => $result['user']['role'] === 'admin' ? '/admin/dashboard.php' : '/dashboard.php',
+        'redirect' => $result['user']['role'] === 'admin' ? '/admin/index.html' : '/dashboard.html',
     ], 200);
 }
 

@@ -163,7 +163,7 @@ if (loginForm) {
       const data = await postJson('/api/auth/login.php', payload);
       if (data.status === 'success') {
         showAlert(alertBox, 'success', data.message);
-        const redirect = (data.data && data.data.redirect) || '/dashboard.php';
+        const redirect = (data.data && data.data.redirect) || '/dashboard.html';
         setTimeout(() => { window.location.href = redirect; }, 600);
       } else {
         showAlert(alertBox, 'error', data.message || 'Login failed.');

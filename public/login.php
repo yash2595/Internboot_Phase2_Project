@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../src/core/bootstrap.php';
 
 if (isset($_SESSION['user_id'])) {
-    header('Location: /dashboard.php');
+    header('Location: /dashboard.html');
     exit;
 }
 
