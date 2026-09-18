@@ -297,11 +297,9 @@ function decrement_slot_capacity(int $slotId, mysqli $conn): int {
 }
 
 /**
- * Inserts a new booked attempt for a candidate.
- * Attempts status 'booked' per Tech Lead recommendation, with graceful fallback to 'in_progress'
- * if the live database schema enum has not yet been updated by M1.
+ * Inserts a new attempt for a candidate.
  */
-function insert_attempt(int $candidateId, int $assessmentId, int $slotId, mysqli $conn, string $status = 'booked'): int {
+function insert_attempt(int $candidateId, int $assessmentId, int $slotId, mysqli $conn, string $status = 'in_progress'): int {
     $sql = "INSERT INTO attempts (candidate_id, assessment_id, exam_slot_id, status, created_at) 
             VALUES (?, ?, ?, ?, NOW())";
     $stmt = $conn->prepare($sql);
@@ -309,20 +307,11 @@ function insert_attempt(int $candidateId, int $assessmentId, int $slotId, mysqli
         throw new Exception("Failed to prepare attempt insert query: " . (@$conn->error ?: 'query error'));
     }
     $stmt->bind_param("iiis", $candidateId, $assessmentId, $slotId, $status);
-    
-    try {
-        $stmt->execute();
-        $attemptId = (int)$stmt->insert_id;
-        $stmt->close();
-        return $attemptId;
-    } catch (mysqli_sql_exception $e) {
-        $stmt->close();
-        // Fallback to 'in_progress' if 'booked' is not yet in the MySQL ENUM on the database
-        if ($status === 'booked' && (str_contains($e->getMessage(), 'truncated') || str_contains($e->getMessage(), 'status'))) {
-            return insert_attempt($candidateId, $assessmentId, $slotId, $conn, 'in_progress');
-        }
-        throw $e;
-    }
+    $stmt->execute();
+    $attemptId = (int)$stmt->insert_id;
+    $stmt->close();
+
+    return $attemptId;
 }
 
 /**

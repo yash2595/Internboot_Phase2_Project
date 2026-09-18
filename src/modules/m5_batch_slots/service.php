@@ -267,8 +267,8 @@ function book_exam_slot(int $candidateId, int $assessmentId, int $examSlotId, my
             throw new Exception("Selected exam slot is fully booked. No seats remaining.");
         }
 
-        // Insert new exam attempt record (status 'booked' per Tech Lead recommendation, falling back to 'in_progress' if enum unmigrated)
-        $attemptId = insert_attempt($candidateId, $assessmentId, $examSlotId, $conn, 'booked');
+        // Insert new exam attempt record
+        $attemptId = insert_attempt($candidateId, $assessmentId, $examSlotId, $conn);
 
         // Commit transaction
         $conn->commit();
