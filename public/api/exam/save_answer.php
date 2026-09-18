@@ -13,14 +13,7 @@ try {
         !isset($_SESSION['candidate_id']) ||
         !is_numeric($_SESSION['candidate_id'])
     ) {
-        http_response_code(401);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Candidate authentication required'
-        ]);
-
-        exit;
+        send_json_response('error', 'Candidate authentication required', null, 401);
     }
 
     $candidateId = (int) $_SESSION['candidate_id'];
@@ -30,14 +23,7 @@ try {
      */
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
-        http_response_code(405);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'POST request required'
-        ]);
-
-        exit;
+        send_json_response('error', 'POST request required', null, 405);
     }
 
     /*
@@ -50,14 +36,7 @@ try {
 
     if (!is_array($input)) {
 
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid JSON body'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid JSON body', null, 400);
     }
 
     $attemptId = isset($input['attempt_id'])
@@ -78,14 +57,7 @@ try {
         $selectedOptionId <= 0
     ) {
 
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid answer data'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid answer data', null, 400);
     }
 
     /*
@@ -125,27 +97,14 @@ try {
 
     if (!$attempt) {
 
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt not found or access denied'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt not found or access denied', null, 404);
     }
 
     if ($attempt['status'] !== 'in_progress') {
 
-        http_response_code(403);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'This attempt is no longer active',
+        send_json_response('error', 'This attempt is no longer active', [
             'status' => $attempt['status']
-        ]);
-
-        exit;
+        ], 403);
     }
 
     /*
@@ -153,14 +112,7 @@ try {
      */
     if (empty($attempt['end_time'])) {
 
-        http_response_code(500);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt timing is not initialized'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt timing is not initialized', null, 500);
     }
 
     $now = new DateTime();
@@ -197,15 +149,9 @@ try {
 
         $expireStmt->close();
 
-        http_response_code(403);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Exam time has expired',
+        send_json_response('error', 'Exam time has expired', [
             'status' => 'expired'
-        ]);
-
-        exit;
+        ], 403);
     }
 
     /*
@@ -241,28 +187,14 @@ try {
 
     if (!$assessment) {
 
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Assessment not found'
-        ]);
-
-        exit;
+        send_json_response('error', 'Assessment not found', null, 404);
     }
 
     $totalQuestions = (int) $assessment['total_questions'];
 
     if ($totalQuestions <= 0) {
 
-        http_response_code(500);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid assessment question configuration'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid assessment question configuration', null, 500);
     }
 
     /*
@@ -323,14 +255,7 @@ try {
 
     if (!$questionAssigned) {
 
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Question is not assigned to this attempt'
-        ]);
-
-        exit;
+        send_json_response('error', 'Question is not assigned to this attempt', null, 400);
     }
 
     /*
@@ -369,14 +294,7 @@ try {
 
     if (!$validOption) {
 
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid option for this question'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid option for this question', null, 400);
     }
 
     /*
@@ -423,20 +341,13 @@ try {
     /*
      * 10. Success response.
      */
-    echo json_encode([
-        'success' => true,
-        'message' => 'Answer saved successfully',
+    send_json_response('success', 'Answer saved successfully', [
         'attempt_id' => $attemptId,
         'question_id' => $questionId,
         'selected_option_id' => $selectedOptionId
-    ]);
+    ], 200);
 
 } catch (Throwable $e) {
 
-    http_response_code(500);
-
-    echo json_encode([
-        'success' => false,
-        'message' => 'Internal server error'
-    ]);
+    send_json_response('error', 'Internal server error', null, 500);
 }

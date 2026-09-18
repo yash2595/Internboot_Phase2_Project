@@ -896,7 +896,7 @@ async function initializeExam() {
         const startData = await startResponse.json();
 
 
-        if (!startData.success) {
+        if (!(startData.status === "success")) {
 
             showError(startData.message);
 
@@ -905,7 +905,7 @@ async function initializeExam() {
 
 
         remainingSeconds =
-            Number(startData.remaining_seconds);
+            Number(startData.data?.remaining_seconds ?? startData.remaining_seconds);
 
 
         /*
@@ -920,7 +920,7 @@ async function initializeExam() {
             await questionResponse.json();
 
 
-        if (!questionData.success) {
+        if (!(questionData.status === "success")) {
 
             showError(questionData.message);
 
@@ -929,7 +929,7 @@ async function initializeExam() {
 
 
         questions =
-            questionData.questions;
+            questionData.data?.questions ?? questionData.questions ?? [];
 
         questions.forEach(question => {
             if (question.selected_option_id !== null) {
@@ -1200,7 +1200,7 @@ async function syncCurrentAnswers() {
 
             const data = await response.json();
 
-            if (!data.success) {
+            if (!(data.status === "success")) {
                 console.warn(
                     "Autosave failed:",
                     data.message
@@ -1680,7 +1680,7 @@ async function saveAnswer(
             await response.json();
 
 
-        if (!data.success) {
+        if (!(data.status === "success")) {
 
             saveStatus.className =
                 "save-status error";
@@ -1695,12 +1695,14 @@ async function saveAnswer(
         }
 
 
-        saveStatus.className =
-            "save-status success";
+        if (data.status === "success") {
+            saveStatus.className =
+                "save-status success";
 
 
-        saveStatus.textContent =
-            "Answer saved";
+            saveStatus.textContent =
+                "Answer saved";
+        }
 
     }
 
@@ -1845,7 +1847,7 @@ async function submitExam(
             await response.json();
 
 
-        if (data.success) {
+        if (data.status === "success") {
 
             alert(
                 autoSubmit

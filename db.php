@@ -46,16 +46,20 @@ function parse_mysql_url(string $url): array
 }
 
 /*
- * Priority for local development:
- * 1. Explicit DB_* variables.
- * 2. Railway MYSQL_PUBLIC_URL (public URL works from a local PC).
- * 3. Railway split variables.
- * 4. MYSQL_URL (private Railway URL; useful when the app itself runs on Railway).
+ * Priority resolution:
+ * - If running on Railway (RAILWAY_ENVIRONMENT is set) and MYSQL_URL is present,
+ *   prefer MYSQL_URL (private/internal network) over MYSQL_PUBLIC_URL.
+ * - Otherwise (local development), prefer MYSQL_PUBLIC_URL.
+ * - Explicit DB_* variables always take highest priority.
  */
 $publicUrl = env_value('MYSQL_PUBLIC_URL', '');
 $privateUrl = env_value('MYSQL_URL', '');
 $publicConfig = $publicUrl !== '' ? parse_mysql_url($publicUrl) : [];
 $privateConfig = $privateUrl !== '' ? parse_mysql_url($privateUrl) : [];
+
+$isRailway = env_value('RAILWAY_ENVIRONMENT') !== null && env_value('RAILWAY_ENVIRONMENT') !== '';
+$primaryConfig = ($isRailway && !empty($privateConfig)) ? $privateConfig : $publicConfig;
+$secondaryConfig = ($isRailway && !empty($privateConfig)) ? $publicConfig : $privateConfig;
 
 $host = env_value('DB_HOST');
 $port = env_value('DB_PORT');
@@ -63,13 +67,13 @@ $user = env_value('DB_USER');
 $password = env_value('DB_PASSWORD');
 $dbname = env_value('DB_NAME');
 
-if ($host === null || $host === '') $host = $publicConfig['host'] ?? env_value('MYSQLHOST') ?? $privateConfig['host'] ?? '127.0.0.1';
-if ($port === null || $port === '') $port = (string)($publicConfig['port'] ?? env_value('MYSQLPORT') ?? $privateConfig['port'] ?? 3306);
-if ($user === null || $user === '') $user = $publicConfig['user'] ?? env_value('MYSQLUSER') ?? $privateConfig['user'] ?? 'root';
+if ($host === null || $host === '') $host = $primaryConfig['host'] ?? env_value('MYSQLHOST') ?? $secondaryConfig['host'] ?? '127.0.0.1';
+if ($port === null || $port === '') $port = (string)($primaryConfig['port'] ?? env_value('MYSQLPORT') ?? $secondaryConfig['port'] ?? 3306);
+if ($user === null || $user === '') $user = $primaryConfig['user'] ?? env_value('MYSQLUSER') ?? $secondaryConfig['user'] ?? 'root';
 if ($password === null || $password === '') {
-    $password = $publicConfig['password'] ?? env_value('MYSQL_ROOT_PASSWORD') ?? env_value('MYSQLPASSWORD') ?? $privateConfig['password'] ?? '';
+    $password = $primaryConfig['password'] ?? env_value('MYSQL_ROOT_PASSWORD') ?? env_value('MYSQLPASSWORD') ?? $secondaryConfig['password'] ?? '';
 }
-if ($dbname === null || $dbname === '') $dbname = $publicConfig['database'] ?? env_value('MYSQL_DATABASE') ?? env_value('MYSQLDATABASE') ?? $privateConfig['database'] ?? 'railway';
+if ($dbname === null || $dbname === '') $dbname = $primaryConfig['database'] ?? env_value('MYSQL_DATABASE') ?? env_value('MYSQLDATABASE') ?? $secondaryConfig['database'] ?? 'railway';
 
 /* The pasted Railway value can accidentally contain another variable assignment. */
 if (str_starts_with((string)$password, 'MYSQL_') && str_contains((string)$password, '=')) {

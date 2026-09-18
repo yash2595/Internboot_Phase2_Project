@@ -80,46 +80,89 @@ function parse_profile_details(?string $raw): array {
 
 try {
     $candidateId = resolve_candidate_id($_GET);
-    $candidate = get_candidate($candidateId);
 
-    if (!$candidate) {
+    /* 1. Merged Candidate + Latest Payment + Latest Enrollment + Assessment query */
+    $stmt = $conn->prepare(
+        'SELECT 
+            c.id AS candidate_id, c.user_id, c.full_name, c.phone, c.profile_details, c.created_at AS candidate_created_at,
+            u.email,
+            p.id AS payment_id, p.assessment_id AS payment_assessment_id, p.amount AS payment_amount,
+            p.status AS payment_status, p.reference_number, p.payment_date, p.created_at AS payment_created_at,
+            e.id AS enrollment_id, e.assessment_id AS enrollment_assessment_id, e.payment_id AS enrollment_payment_id,
+            e.batch_id, e.eligibility_status, e.created_at AS enrollment_created_at,
+            ass.id AS assessment_id, ass.title AS assessment_title, ass.description AS assessment_description,
+            ass.duration_minutes, ass.total_questions, ass.status AS assessment_status
+        FROM candidates c
+        LEFT JOIN users u ON u.id = c.user_id
+        LEFT JOIN (
+            SELECT id, assessment_id, amount, status, reference_number, payment_date, created_at
+            FROM payments
+            WHERE candidate_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ) p ON 1=1
+        LEFT JOIN (
+            SELECT id, assessment_id, payment_id, batch_id, eligibility_status, created_at
+            FROM enrollments
+            WHERE candidate_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ) e ON 1=1
+        LEFT JOIN assessments ass ON ass.id = COALESCE(NULLIF(e.assessment_id, 0), NULLIF(p.assessment_id, 0))
+        WHERE c.id = ?
+        LIMIT 1'
+    );
+    $stmt->bind_param('iii', $candidateId, $candidateId, $candidateId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$row || empty($row['candidate_id'])) {
         send_json_response('error', 'Candidate not found.', null, 404);
     }
 
+    $candidate = [
+        'id' => $row['candidate_id'],
+        'user_id' => $row['user_id'],
+        'full_name' => $row['full_name'],
+        'phone' => $row['phone'],
+        'profile_details' => $row['profile_details'],
+        'created_at' => $row['candidate_created_at'],
+        'email' => $row['email'],
+    ];
+
     $profile = parse_profile_details($candidate['profile_details']);
 
-    /* Latest Payment */
-    $stmt = $conn->prepare(
-        'SELECT id, assessment_id, amount, status, reference_number, payment_date, created_at
-         FROM payments WHERE candidate_id = ? ORDER BY id DESC LIMIT 1'
-    );
-    $stmt->bind_param('i', $candidateId);
-    $stmt->execute();
-    $paymentRow = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    $paymentRow = ($row['payment_id'] !== null) ? [
+        'id' => $row['payment_id'],
+        'assessment_id' => $row['payment_assessment_id'],
+        'amount' => $row['payment_amount'],
+        'status' => $row['payment_status'],
+        'reference_number' => $row['reference_number'],
+        'payment_date' => $row['payment_date'],
+        'created_at' => $row['payment_created_at'],
+    ] : null;
 
-    /* Latest Enrollment */
-    $stmt = $conn->prepare(
-        'SELECT e.id, e.assessment_id, e.payment_id, e.batch_id, e.eligibility_status, e.created_at,
-                a.title AS assessment_title
-         FROM enrollments e
-         LEFT JOIN assessments a ON a.id = e.assessment_id
-         WHERE e.candidate_id = ? ORDER BY e.id DESC LIMIT 1'
-    );
-    $stmt->bind_param('i', $candidateId);
-    $stmt->execute();
-    $enrollmentRow = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    $enrollmentRow = ($row['enrollment_id'] !== null) ? [
+        'id' => $row['enrollment_id'],
+        'assessment_id' => $row['enrollment_assessment_id'],
+        'payment_id' => $row['enrollment_payment_id'],
+        'batch_id' => $row['batch_id'],
+        'eligibility_status' => $row['eligibility_status'],
+        'created_at' => $row['enrollment_created_at'],
+        'assessment_title' => $row['assessment_title'],
+    ] : null;
 
-    $assessmentId = 0;
-    if ($enrollmentRow) {
-        $assessmentId = (int)$enrollmentRow['assessment_id'];
-    } elseif ($paymentRow) {
-        $assessmentId = (int)$paymentRow['assessment_id'];
-    }
-    $assessment = $assessmentId > 0 ? get_assessment($assessmentId) : null;
+    $assessment = ($row['assessment_id'] !== null) ? [
+        'id' => $row['assessment_id'],
+        'title' => $row['assessment_title'],
+        'description' => $row['assessment_description'],
+        'duration_minutes' => $row['duration_minutes'],
+        'total_questions' => $row['total_questions'],
+        'status' => $row['assessment_status'],
+    ] : null;
 
-    /* Batch */
+    /* 2. Batch (remains separate query as it depends on enrollment batch_id) */
     $batchRow = null;
     if ($enrollmentRow && $enrollmentRow['batch_id'] !== null) {
         $batchId = (int)$enrollmentRow['batch_id'];
@@ -138,26 +181,46 @@ try {
         $stmt->close();
     }
 
-    /* Result */
+    /* 3. Combined Result + Certificate query */
     $stmt = $conn->prepare(
-        'SELECT r.id, r.total_score, r.percentage, r.level_assigned, a.id AS attempt_id
-         FROM results r
-         INNER JOIN attempts a ON a.id = r.attempt_id
-         WHERE a.candidate_id = ? ORDER BY r.id DESC LIMIT 1'
+        'SELECT 
+            r.id AS result_id, r.total_score, r.percentage, r.level_assigned, r.attempt_id,
+            c.certificate_number, c.level AS certificate_level, c.issue_date AS certificate_issue_date
+         FROM (SELECT 1) _d
+         LEFT JOIN (
+             SELECT res.id, res.total_score, res.percentage, res.level_assigned, a.id AS attempt_id
+             FROM results res
+             INNER JOIN attempts a ON a.id = res.attempt_id
+             WHERE a.candidate_id = ?
+             ORDER BY res.id DESC
+             LIMIT 1
+         ) r ON 1=1
+         LEFT JOIN (
+             SELECT certificate_number, level, issue_date
+             FROM certificates
+             WHERE candidate_id = ?
+             ORDER BY id DESC
+             LIMIT 1
+         ) c ON 1=1'
     );
-    $stmt->bind_param('i', $candidateId);
+    $stmt->bind_param('ii', $candidateId, $candidateId);
     $stmt->execute();
-    $resultRow = $stmt->get_result()->fetch_assoc();
+    $combinedRow = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    /* Certificate */
-    $stmt = $conn->prepare(
-        'SELECT certificate_number, level, issue_date FROM certificates WHERE candidate_id = ? ORDER BY id DESC LIMIT 1'
-    );
-    $stmt->bind_param('i', $candidateId);
-    $stmt->execute();
-    $certificateRow = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    $resultRow = ($combinedRow && $combinedRow['result_id'] !== null) ? [
+        'id' => $combinedRow['result_id'],
+        'total_score' => $combinedRow['total_score'],
+        'percentage' => $combinedRow['percentage'],
+        'level_assigned' => $combinedRow['level_assigned'],
+        'attempt_id' => $combinedRow['attempt_id'],
+    ] : null;
+
+    $certificateRow = ($combinedRow && $combinedRow['certificate_number'] !== null) ? [
+        'certificate_number' => $combinedRow['certificate_number'],
+        'level' => $combinedRow['certificate_level'],
+        'issue_date' => $combinedRow['certificate_issue_date'],
+    ] : null;
 
     $payment = [
         'totalFee' => '—', 'paidAmount' => '—', 'status' => 'Pending',
