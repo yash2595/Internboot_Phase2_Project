@@ -16,6 +16,24 @@ try {
      * M5 shares candidate_id through the PHP session.
      */
     if (
+        (!isset($_SESSION['candidate_id']) || !is_numeric($_SESSION['candidate_id'])) &&
+        isset($_SESSION['user_id']) && is_numeric($_SESSION['user_id']) &&
+        isset($conn)
+    ) {
+        $userStmt = $conn->prepare("SELECT id FROM candidates WHERE user_id = ? LIMIT 1");
+        if ($userStmt) {
+            $uId = (int)$_SESSION['user_id'];
+            $userStmt->bind_param("i", $uId);
+            $userStmt->execute();
+            $userRes = $userStmt->get_result()->fetch_assoc();
+            $userStmt->close();
+            if ($userRes) {
+                $_SESSION['candidate_id'] = (int)$userRes['id'];
+            }
+        }
+    }
+
+    if (
         !isset($_SESSION['candidate_id']) ||
         !is_numeric($_SESSION['candidate_id'])
     ) {
@@ -66,13 +84,13 @@ try {
 
         FROM attempts a
 
-        INNER JOIN exam_slots es
+        LEFT JOIN exam_slots es
             ON es.id = a.exam_slot_id
 
-        INNER JOIN exam_schedules sch
+        LEFT JOIN exam_schedules sch
             ON sch.id = es.exam_schedule_id
 
-        INNER JOIN assessments ass
+        LEFT JOIN assessments ass
             ON ass.id = a.assessment_id
 
         WHERE a.id = ?
@@ -179,11 +197,21 @@ try {
 
         $updateStmt->execute();
 
-        /*
-         * Re-read the values that were just committed.
-         */
-        $attempt['start_time'] = $startTime;
-        $attempt['end_time'] = $endTime;
+        if ($updateStmt->affected_rows === 1) {
+            $attempt['start_time'] = $startTime;
+            $attempt['end_time'] = $endTime;
+        } else {
+            // dusri request jeet gayi race — DB se actual values lo
+            $refetch = $conn->prepare('SELECT start_time, end_time FROM attempts WHERE id = ? AND candidate_id = ?');
+            $refetch->bind_param('ii', $attemptId, $candidateId);
+            $refetch->execute();
+            $fresh = $refetch->get_result()->fetch_assoc();
+            $refetch->close();
+            if ($fresh) {
+                $attempt['start_time'] = $fresh['start_time'];
+                $attempt['end_time'] = $fresh['end_time'];
+            }
+        }
 
         $updateStmt->close();
     }
@@ -264,5 +292,6 @@ try {
     ], 200);
 
 } catch (Throwable $e) {
-    send_json_response('error', 'Internal server error: ' . $e->getMessage(), null, 500);
+    error_log('start_exam error: ' . $e->getMessage());
+    send_json_response('error', 'Internal server error', null, 500);
 }

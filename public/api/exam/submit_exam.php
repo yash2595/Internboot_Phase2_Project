@@ -12,6 +12,24 @@ if (file_exists(dirname(__DIR__, 3) . '/src/core/bootstrap.php')) {
 try {
 
     if (
+        (!isset($_SESSION['candidate_id']) || !is_numeric($_SESSION['candidate_id'])) &&
+        isset($_SESSION['user_id']) && is_numeric($_SESSION['user_id']) &&
+        isset($conn)
+    ) {
+        $userStmt = $conn->prepare("SELECT id FROM candidates WHERE user_id = ? LIMIT 1");
+        if ($userStmt) {
+            $uId = (int)$_SESSION['user_id'];
+            $userStmt->bind_param("i", $uId);
+            $userStmt->execute();
+            $userRes = $userStmt->get_result()->fetch_assoc();
+            $userStmt->close();
+            if ($userRes) {
+                $_SESSION['candidate_id'] = (int)$userRes['id'];
+            }
+        }
+    }
+
+    if (
         !isset($_SESSION['candidate_id']) ||
         !is_numeric($_SESSION['candidate_id'])
     ) {
@@ -145,5 +163,6 @@ try {
     ], 200);
 
 } catch (Throwable $e) {
-    send_json_response('error', 'Internal server error: ' . $e->getMessage(), null, 500);
+    error_log('submit_exam error: ' . $e->getMessage());
+    send_json_response('error', 'Internal server error', null, 500);
 }
