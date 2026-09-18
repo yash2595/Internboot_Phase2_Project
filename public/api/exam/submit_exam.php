@@ -1,39 +1,27 @@
 <?php
 
-// Load central bootstrap (initializes session, .env, and Railway DB connection $conn)
-if (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
+// Load central bootstrap
+if (file_exists(dirname(__DIR__, 3) . '/src/core/bootstrap.php')) {
+    require_once dirname(__DIR__, 3) . '/src/core/bootstrap.php';
+} elseif (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
     require_once __DIR__ . '/../../../src/core/bootstrap.php';
 } else {
     require_once __DIR__ . '/../src/core/bootstrap.php';
 }
 
-header('Content-Type: application/json');
-
 try {
 
     if (
-    !isset($_SESSION['candidate_id']) ||
-    !is_numeric($_SESSION['candidate_id'])
-) {
-    http_response_code(401);
+        !isset($_SESSION['candidate_id']) ||
+        !is_numeric($_SESSION['candidate_id'])
+    ) {
+        send_json_response('error', 'Candidate authentication required', null, 401);
+    }
 
-    echo json_encode([
-        'success' => false,
-        'message' => 'Candidate authentication required'
-    ]);
-
-    exit;
-}
-
-$candidateId = (int) $_SESSION['candidate_id'];
+    $candidateId = (int) $_SESSION['candidate_id'];
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode([
-            'success' => false,
-            'message' => 'POST request required'
-        ]);
-        exit;
+        send_json_response('error', 'POST request required', null, 405);
     }
 
     $input = json_decode(
@@ -46,14 +34,7 @@ $candidateId = (int) $_SESSION['candidate_id'];
         : 0;
 
     if ($attemptId <= 0) {
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid attempt ID'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid attempt ID', null, 400);
     }
 
     /*
@@ -83,14 +64,7 @@ $candidateId = (int) $_SESSION['candidate_id'];
     $attempt = $result->fetch_assoc();
 
     if (!$attempt) {
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt not found or access denied'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt not found or access denied', null, 404);
     }
 
     /*
@@ -100,15 +74,9 @@ $candidateId = (int) $_SESSION['candidate_id'];
         $attempt['status'] === 'submitted' ||
         $attempt['status'] === 'expired'
     ) {
-        http_response_code(409);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt has already been closed',
+        send_json_response('error', 'Attempt has already been closed', [
             'status' => $attempt['status']
-        ]);
-
-        exit;
+        ], 409);
     }
 
     /*
@@ -141,15 +109,7 @@ $candidateId = (int) $_SESSION['candidate_id'];
      * already submitted/expired the attempt.
      */
     if ($submitStmt->affected_rows !== 1) {
-
-        http_response_code(409);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt could not be submitted'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt could not be submitted', null, 409);
     }
 
     /*
@@ -173,9 +133,8 @@ $candidateId = (int) $_SESSION['candidate_id'];
 
     $answeredCount = (int) $answerData['answered_count'];
 
-    echo json_encode([
+    send_json_response('success', 'Exam submitted successfully', [
         'success' => true,
-        'message' => 'Exam submitted successfully',
         'attempt_id' => $attemptId,
         'candidate_id' => $candidateId,
         'assessment_id' => (int) $attempt['assessment_id'],
@@ -183,14 +142,8 @@ $candidateId = (int) $_SESSION['candidate_id'];
         'submitted_at' => date('Y-m-d H:i:s'),
         'answered_count' => $answeredCount,
         'evaluation_pending' => true
-    ]);
+    ], 200);
 
 } catch (Throwable $e) {
-
-    http_response_code(500);
-
-    echo json_encode([
-        'success' => false,
-        'message' => 'Internal server error'
-    ]);
+    send_json_response('error', 'Internal server error: ' . $e->getMessage(), null, 500);
 }

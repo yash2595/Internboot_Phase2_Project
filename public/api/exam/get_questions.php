@@ -1,13 +1,13 @@
 <?php
 
-// Load central bootstrap (initializes session, .env, and Railway DB connection $conn)
-if (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
+// Load central bootstrap
+if (file_exists(dirname(__DIR__, 3) . '/src/core/bootstrap.php')) {
+    require_once dirname(__DIR__, 3) . '/src/core/bootstrap.php';
+} elseif (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
     require_once __DIR__ . '/../../../src/core/bootstrap.php';
 } else {
     require_once __DIR__ . '/../src/core/bootstrap.php';
 }
-
-header('Content-Type: application/json');
 
 try {
 
@@ -18,14 +18,7 @@ try {
         !isset($_SESSION['candidate_id']) ||
         !is_numeric($_SESSION['candidate_id'])
     ) {
-        http_response_code(401);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Candidate authentication required'
-        ]);
-
-        exit;
+        send_json_response('error', 'Candidate authentication required', null, 401);
     }
 
     $candidateId = (int) $_SESSION['candidate_id'];
@@ -38,14 +31,7 @@ try {
         : 0;
 
     if ($attemptId <= 0) {
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid attempt ID'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid attempt ID', null, 400);
     }
 
     /*
@@ -86,46 +72,23 @@ try {
     $attemptStmt->close();
 
     if (!$attempt) {
-
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt not found or access denied'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt not found or access denied', null, 404);
     }
 
     /*
      * 4. Only in-progress attempts can load questions.
      */
     if ($attempt['status'] !== 'in_progress') {
-
-        http_response_code(403);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Questions are not available for this attempt',
+        send_json_response('error', 'Questions are not available for this attempt', [
             'status' => $attempt['status']
-        ]);
-
-        exit;
+        ], 403);
     }
 
     /*
      * 5. Server-side expiry check
      */
     if (empty($attempt['end_time'])) {
-
-        http_response_code(500);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt timing is not initialized'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt timing is not initialized', null, 500);
     }
 
     $now = new DateTime();
@@ -159,15 +122,9 @@ try {
 
         $expireStmt->close();
 
-        http_response_code(403);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Exam time has expired',
+        send_json_response('error', 'Exam time has expired', [
             'status' => 'expired'
-        ]);
-
-        exit;
+        ], 403);
     }
 
     /*
@@ -203,15 +160,7 @@ try {
     $assessmentStmt->close();
 
     if (!$assessment) {
-
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Assessment not found'
-        ]);
-
-        exit;
+        send_json_response('error', 'Assessment not found', null, 404);
     }
 
     $totalQuestions = (int) $assessment['total_questions'];
@@ -364,22 +313,16 @@ try {
     $questionStmt->close();
 
     /*
-     * 11. Return questions.
+     * 11. Return questions using standardized helper.
      */
-    echo json_encode([
+    send_json_response('success', 'Questions retrieved successfully', [
         'success' => true,
         'attempt_id' => $attemptId,
         'assessment_id' => (int) $attempt['assessment_id'],
         'total_questions' => count($questions),
         'questions' => $questions
-    ]);
+    ], 200);
 
 } catch (Throwable $e) {
-
-    http_response_code(500);
-
-    echo json_encode([
-        'success' => false,
-        'message' => 'Internal server error'
-    ]);
+    send_json_response('error', 'Internal server error: ' . $e->getMessage(), null, 500);
 }
