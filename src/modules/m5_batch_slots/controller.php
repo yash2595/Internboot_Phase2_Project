@@ -86,10 +86,18 @@ function handle_auto_batch_request(array $input, mysqli $conn): void {
     }
 
     try {
-        $batchResult = check_and_create_batch($assessmentId, $conn, $customThreshold);
+        $batches = create_all_eligible_batches($assessmentId, $conn, $customThreshold);
 
-        if ($batchResult !== null) {
-            send_json_response('success', 'Batch and exam schedules formed successfully', $batchResult, 201);
+        if (!empty($batches)) {
+            $threshold = get_batch_threshold($conn, $customThreshold);
+            $eligibleCount = get_unbatched_eligible_count($assessmentId, $conn);
+            send_json_response('success', count($batches) . ' batch(es) and exam schedules formed successfully', [
+                'assessment_id' => $assessmentId,
+                'batches_formed' => count($batches),
+                'batches' => $batches,
+                'remaining_eligible_count' => $eligibleCount,
+                'threshold' => $threshold
+            ], 201);
             return;
         } else {
             $threshold = get_batch_threshold($conn, $customThreshold);
