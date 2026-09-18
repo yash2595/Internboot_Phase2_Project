@@ -212,9 +212,13 @@ try {
             $s->close();
 
             $conn->commit();
-        } catch (Throwable $e) {
+        } catch (RuntimeException $e) {
             $conn->rollback();
             error_log('Payment verification error: ' . $e->getMessage());
+            send_json_response('error', 'Payment verification failed.', null, 403);
+        } catch (Throwable $e) {
+            $conn->rollback();
+            error_log('Payment verification DB/server error: ' . $e->getMessage());
             send_json_response('error', 'An internal error occurred during payment verification.', null, 500);
         }
 
