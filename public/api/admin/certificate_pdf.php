@@ -37,24 +37,14 @@ try {
     require_once __DIR__ . '/../../../src/modules/m7_evaluation_admin/service.php';
     require_once __DIR__ . '/../../../src/modules/m7_evaluation_admin/pdf.php';
 
-    // Verify session & role
-    $role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? null;
-    $userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
-    if ($userId > 0 && !$role && isset($conn) && $conn instanceof mysqli) {
-        $stmt = $conn->prepare('SELECT role,is_active FROM users WHERE id=? LIMIT 1');
-        $stmt->bind_param('i', $userId);
-        $stmt->execute();
-        $user = $stmt->get_result()->fetch_assoc() ?: null;
-        $stmt->close();
-        if ($user && (int)$user['is_active'] === 1) $role = $user['role'];
-    }
-    if (!in_array($role, ['admin', 'staff'], true)) {
-        render_certificate_error_page('Administrator access required to view or download certificates.', 403);
-    }
+    require_admin_access_or_throw($conn, 'Administrator access required to view or download certificates.');
+
 
     $resultId = require_positive_int($_GET['result_id'] ?? null, 'result_id');
     $data = generate_certificate($conn, $resultId);
     output_certificate_pdf($data);
+} catch (RuntimeException $e) {
+    render_certificate_error_page($e->getMessage(), 403);
 } catch (InvalidArgumentException $e) {
     render_certificate_error_page($e->getMessage(), 422);
 } catch (Throwable $e) {
@@ -62,4 +52,5 @@ try {
     $dev = ($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production') === 'development';
     render_certificate_error_page($dev ? $e->getMessage() : 'Certificate could not be generated. Please try again or contact support.', 500);
 }
+
 

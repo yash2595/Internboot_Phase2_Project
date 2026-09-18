@@ -58,9 +58,8 @@ if (session_status() === PHP_SESSION_NONE) {
     ]);
 }
 
-function require_admin_access(mysqli $conn): void
+function is_admin_authenticated(mysqli $conn): bool
 {
-    $appEnv = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
     $role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? null;
     $userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 
@@ -73,10 +72,23 @@ function require_admin_access(mysqli $conn): void
         if ($user && (int)$user['is_active'] === 1) $role = $user['role'];
     }
 
-    if (in_array($role, ['admin', 'staff'], true)) return;
+    return in_array($role, ['admin', 'staff'], true);
+}
+
+function require_admin_access(mysqli $conn): void
+{
+    if (is_admin_authenticated($conn)) return;
 
     send_json_response('error', 'Administrator access required.', null, 403);
 }
+
+function require_admin_access_or_throw(mysqli $conn, string $message = 'Administrator access required.'): void
+{
+    if (is_admin_authenticated($conn)) return;
+
+    throw new RuntimeException($message);
+}
+
 
 function csrf_token(): string
 {
