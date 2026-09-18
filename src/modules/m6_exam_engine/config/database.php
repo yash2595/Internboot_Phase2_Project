@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 date_default_timezone_set('Asia/Kolkata');
 
-$rootDir = dirname(__DIR__, 3);
+$rootDir = dirname(__DIR__, 4);
 if (file_exists($rootDir . '/db.php')) {
     require_once $rootDir . '/db.php';
 } else {
