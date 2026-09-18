@@ -1,0 +1,439 @@
+-- ============================================================================
+-- InternBoot Platform - Complete Single-File Production MySQL Database Schema
+-- Database Engine: MySQL 8.0+ / MariaDB 10.3+ (InnoDB Engine)
+-- File: schema.sql
+-- ============================================================================
+
+-- Safely disable foreign key checks during creation/re-creation
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------------------------------------------------------
+-- Table 1: users
+-- Purpose: Authentication & core user account records with role permissions
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `users`;
+CREATE TABLE `users` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `email` VARCHAR(255) NOT NULL UNIQUE,
+  `password` VARCHAR(255) NOT NULL COMMENT 'Bcrypt/Argon2id hashed password, never plaintext',
+  `role` ENUM('candidate', 'admin', 'staff') NOT NULL DEFAULT 'candidate',
+  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_users_email` (`email`),
+  INDEX `idx_users_role` (`role`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 2: candidates
+-- Purpose: Candidate personal background, contact info, and profile details
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `candidates`;
+CREATE TABLE `candidates` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL UNIQUE,
+  `full_name` VARCHAR(150) NOT NULL,
+  `phone` VARCHAR(20) NOT NULL UNIQUE,
+  `profile_details` TEXT DEFAULT NULL COMMENT 'JSON/Text for education, skills, resume link',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_candidates_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_candidates_user_id` (`user_id`),
+  INDEX `idx_candidates_phone` (`phone`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 3: payments
+-- Purpose: Financial transaction history for candidate assessment registrations
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `payments`;
+CREATE TABLE `payments` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `candidate_id` BIGINT UNSIGNED NOT NULL,
+  `assessment_id` BIGINT UNSIGNED NOT NULL,
+  `amount` DECIMAL(10, 2) NOT NULL,
+  `status` ENUM('pending', 'success', 'failed') NOT NULL DEFAULT 'pending',
+  `reference_number` VARCHAR(100) NOT NULL UNIQUE,
+  `payment_date` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_payments_candidate` FOREIGN KEY (`candidate_id`) REFERENCES `candidates` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_payments_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `assessments` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  INDEX `idx_payments_candidate` (`candidate_id`),
+  INDEX `idx_payments_assessment` (`assessment_id`),
+  INDEX `idx_payments_status` (`status`),
+  INDEX `idx_payments_ref_no` (`reference_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 4: assessments
+-- Purpose: Assessment test configurations (duration, question counts, status)
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `assessments`;
+CREATE TABLE `assessments` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `title` VARCHAR(255) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `duration_minutes` INT UNSIGNED NOT NULL DEFAULT 60,
+  `total_questions` INT UNSIGNED NOT NULL DEFAULT 50,
+  `status` ENUM('draft', 'active', 'archived') NOT NULL DEFAULT 'draft',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_assessments_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 5: batches
+-- Purpose: Candidate groupings formed together once threshold capacity is met
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `batches`;
+CREATE TABLE `batches` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `batch_number` VARCHAR(50) NOT NULL UNIQUE,
+  `assessment_id` BIGINT UNSIGNED NOT NULL,
+  `creation_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_batches_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `assessments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_batches_assessment` (`assessment_id`),
+  INDEX `idx_batches_number` (`batch_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 6: enrollments
+-- Purpose: Links candidate to assessment, eligibility status, payment & batch
+-- Architecture Note: uk_candidate_assessment ensures a candidate has exactly ONE active registration per assessment. Retakes (if settings.retake_allowed = 1) create new rows in `attempts`, NOT new enrollments.
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `enrollments`;
+CREATE TABLE `enrollments` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `candidate_id` BIGINT UNSIGNED NOT NULL,
+  `assessment_id` BIGINT UNSIGNED NOT NULL,
+  `payment_id` BIGINT UNSIGNED DEFAULT NULL,
+  `batch_id` BIGINT UNSIGNED DEFAULT NULL COMMENT 'Allocated batch once threshold is met',
+  `eligibility_status` ENUM('pending', 'eligible') NOT NULL DEFAULT 'pending',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_candidate_assessment` (`candidate_id`, `assessment_id`),
+  CONSTRAINT `fk_enrollments_candidate` FOREIGN KEY (`candidate_id`) REFERENCES `candidates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_enrollments_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `assessments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_enrollments_payment` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_enrollments_batch` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX `idx_enrollments_candidate` (`candidate_id`),
+  INDEX `idx_enrollments_assessment` (`assessment_id`),
+  INDEX `idx_enrollments_payment` (`payment_id`),
+  INDEX `idx_enrollments_batch` (`batch_id`),
+  INDEX `idx_enrollments_eligibility` (`eligibility_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Candidate registrations. Retakes create new attempts, not new enrollments.';
+
+-- ----------------------------------------------------------------------------
+-- Table 7: exam_schedules
+-- Purpose: Scheduling dates for batch exams (Business logic restricts dates to Sat/Sun)
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `exam_schedules`;
+CREATE TABLE `exam_schedules` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `batch_id` BIGINT UNSIGNED NOT NULL,
+  `exam_date` DATE NOT NULL COMMENT 'Exam date restricted to Saturday or Sunday',
+  `status` ENUM('scheduled', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'scheduled',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_schedules_batch` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_schedules_batch` (`batch_id`),
+  INDEX `idx_schedules_exam_date` (`exam_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 8: exam_slots
+-- Purpose: Specific time slots, total capacity, and seat management per schedule.
+-- Concurrency Note: Booking updates MUST execute as `UPDATE exam_slots SET seats_remaining = seats_remaining - 1 WHERE id = ? AND seats_remaining > 0` to prevent overselling.
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `exam_slots`;
+CREATE TABLE `exam_slots` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `exam_schedule_id` BIGINT UNSIGNED NOT NULL,
+  `start_time` TIME NOT NULL,
+  `end_time` TIME NOT NULL,
+  `capacity` INT UNSIGNED NOT NULL DEFAULT 50,
+  `seats_remaining` INT UNSIGNED NOT NULL DEFAULT 50,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_slots_schedule` FOREIGN KEY (`exam_schedule_id`) REFERENCES `exam_schedules` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_seats_remaining` CHECK (`seats_remaining` >= 0),
+  INDEX `idx_slots_schedule` (`exam_schedule_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 9: question_banks
+-- Purpose: Named collections of AI-generated/curated questions per assessment
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `question_banks`;
+CREATE TABLE `question_banks` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `assessment_id` BIGINT UNSIGNED NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `status` ENUM('draft', 'approved') NOT NULL DEFAULT 'draft',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_qbanks_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `assessments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_qbanks_assessment` (`assessment_id`),
+  INDEX `idx_qbanks_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 10: questions
+-- Purpose: Individual test questions linked to a question bank.
+-- Exam Engine Note: Only questions with approval_status = 'approved' should be delivered in exams.
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `questions`;
+CREATE TABLE `questions` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `question_bank_id` BIGINT UNSIGNED NOT NULL,
+  `question_text` TEXT NOT NULL,
+  `type` ENUM('MCQ') NOT NULL DEFAULT 'MCQ',
+  `difficulty` ENUM('easy', 'medium', 'hard') NOT NULL DEFAULT 'medium',
+  `approval_status` ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_questions_qbank` FOREIGN KEY (`question_bank_id`) REFERENCES `question_banks` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_questions_qbank` (`question_bank_id`),
+  INDEX `idx_questions_difficulty` (`difficulty`),
+  INDEX `idx_questions_approval_status` (`approval_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 11: options
+-- Purpose: Multiple-choice answer options per question with correctness flag
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `options`;
+CREATE TABLE `options` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `question_id` BIGINT UNSIGNED NOT NULL,
+  `option_text` TEXT NOT NULL,
+  `is_correct` TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_options_question` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_options_question` (`question_id`),
+  INDEX `idx_options_is_correct` (`is_correct`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 12: attempts
+-- Purpose: Execution details of candidate exam sessions, status & timings.
+-- Constraint: exam_slot_id is NOT NULL with RESTRICT to ensure no NULL-bypass race conditions.
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `attempts`;
+CREATE TABLE `attempts` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `candidate_id` BIGINT UNSIGNED NOT NULL,
+  `assessment_id` BIGINT UNSIGNED NOT NULL,
+  `exam_slot_id` BIGINT UNSIGNED NOT NULL,
+  `status` ENUM('in_progress', 'submitted', 'expired') NOT NULL DEFAULT 'in_progress',
+  `start_time` DATETIME DEFAULT NULL,
+  `end_time` DATETIME DEFAULT NULL COMMENT 'Server-side calculated mandatory completion deadline',
+  `submitted_at` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_candidate_exam_slot` (`candidate_id`, `exam_slot_id`),
+  CONSTRAINT `fk_attempts_candidate` FOREIGN KEY (`candidate_id`) REFERENCES `candidates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_attempts_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `assessments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_attempts_slot` FOREIGN KEY (`exam_slot_id`) REFERENCES `exam_slots` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  INDEX `idx_attempts_candidate` (`candidate_id`),
+  INDEX `idx_attempts_assessment` (`assessment_id`),
+  INDEX `idx_attempts_slot` (`exam_slot_id`),
+  INDEX `idx_attempts_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 13: answers
+-- Purpose: Candidate selected options per question for an exam attempt
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `answers`;
+CREATE TABLE `answers` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `attempt_id` BIGINT UNSIGNED NOT NULL,
+  `question_id` BIGINT UNSIGNED NOT NULL,
+  `selected_option_id` BIGINT UNSIGNED DEFAULT NULL,
+  `is_correct` TINYINT(1) DEFAULT NULL COMMENT 'Evaluated score status (0/1)',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_attempt_question` (`attempt_id`, `question_id`),
+  CONSTRAINT `fk_answers_attempt` FOREIGN KEY (`attempt_id`) REFERENCES `attempts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_answers_question` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_answers_option` FOREIGN KEY (`selected_option_id`) REFERENCES `options` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX `idx_answers_attempt` (`attempt_id`),
+  INDEX `idx_answers_question` (`question_id`),
+  INDEX `idx_answers_option` (`selected_option_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 14: results
+-- Purpose: Final calculated score, percentage, and assigned level for an attempt
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `results`;
+CREATE TABLE `results` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `attempt_id` BIGINT UNSIGNED NOT NULL UNIQUE,
+  `total_score` DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
+  `percentage` DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
+  `level_assigned` TINYINT UNSIGNED NOT NULL COMMENT 'Assigned candidate level (1-5)',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_results_attempt` FOREIGN KEY (`attempt_id`) REFERENCES `attempts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_results_percentage` CHECK (`percentage` BETWEEN 0.00 AND 100.00),
+  INDEX `idx_results_attempt` (`attempt_id`),
+  INDEX `idx_results_level` (`level_assigned`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 15: levels
+-- Purpose: Configurable score range to Level (1-5) assignment rules
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `levels`;
+CREATE TABLE `levels` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `level_number` TINYINT UNSIGNED NOT NULL UNIQUE COMMENT 'Level rank (1 to 5)',
+  `level_name` VARCHAR(100) NOT NULL,
+  `min_percentage` DECIMAL(5, 2) NOT NULL,
+  `max_percentage` DECIMAL(5, 2) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `chk_levels_min_percentage` CHECK (`min_percentage` BETWEEN 0.00 AND 100.00),
+  CONSTRAINT `chk_levels_max_percentage` CHECK (`max_percentage` BETWEEN 0.00 AND 100.00),
+  CONSTRAINT `chk_levels_range_valid` CHECK (`min_percentage` <= `max_percentage`),
+  INDEX `idx_levels_number` (`level_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 16: certificates
+-- Purpose: Issued certificates for candidates based on evaluated results
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `certificates`;
+CREATE TABLE `certificates` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `certificate_number` VARCHAR(100) NOT NULL UNIQUE,
+  `candidate_id` BIGINT UNSIGNED NOT NULL,
+  `result_id` BIGINT UNSIGNED NOT NULL UNIQUE,
+  `level` TINYINT UNSIGNED NOT NULL,
+  `issue_date` DATE NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_certs_candidate` FOREIGN KEY (`candidate_id`) REFERENCES `candidates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_certs_result` FOREIGN KEY (`result_id`) REFERENCES `results` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_certs_number` (`certificate_number`),
+  INDEX `idx_certs_candidate` (`candidate_id`),
+  INDEX `idx_certs_result` (`result_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 17: placement_records
+-- Purpose: Post-assessment candidate recruitment status, result link, and employer notes
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `placement_records`;
+CREATE TABLE `placement_records` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `candidate_id` BIGINT UNSIGNED NOT NULL,
+  `result_id` BIGINT UNSIGNED DEFAULT NULL,
+  `placement_status` ENUM('eligible', 'shortlisted', 'interviewing', 'placed', 'not_placed') NOT NULL DEFAULT 'eligible',
+  `notes` TEXT DEFAULT NULL,
+  `company_name` VARCHAR(200) DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_placement_candidate` FOREIGN KEY (`candidate_id`) REFERENCES `candidates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_placement_result` FOREIGN KEY (`result_id`) REFERENCES `results` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX `idx_placement_candidate` (`candidate_id`),
+  INDEX `idx_placement_result` (`result_id`),
+  INDEX `idx_placement_status` (`placement_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 18: admin_logs
+-- Purpose: System audit trail for security tracking of administrative actions
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `admin_logs`;
+CREATE TABLE `admin_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED DEFAULT NULL,
+  `action` VARCHAR(255) NOT NULL,
+  `details` TEXT DEFAULT NULL,
+  `ip_address` VARCHAR(45) DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_admin_logs_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX `idx_admin_logs_user` (`user_id`),
+  INDEX `idx_admin_logs_action` (`action`),
+  INDEX `idx_admin_logs_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- Table 19: settings
+-- Purpose: Global system configurations stored as key-value pairs
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `settings`;
+CREATE TABLE `settings` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `setting_key` VARCHAR(100) NOT NULL UNIQUE,
+  `setting_value` VARCHAR(255) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_settings_key` (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Re-enable foreign key checks after table creation
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- ============================================================================
+-- DATABASE TRIGGERS (Concurrency Safety & Seat Management)
+-- ============================================================================
+
+DELIMITER //
+
+-- Trigger 1: Prevent negative seats on UPDATE
+DROP TRIGGER IF EXISTS `trg_prevent_negative_seats_update`//
+CREATE TRIGGER `trg_prevent_negative_seats_update`
+BEFORE UPDATE ON `exam_slots`
+FOR EACH ROW
+BEGIN
+    IF NEW.seats_remaining < 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Concurrency Error: seats_remaining cannot be negative';
+    END IF;
+END//
+
+-- Trigger 2: Prevent negative seats on INSERT
+DROP TRIGGER IF EXISTS `trg_prevent_negative_seats_insert`//
+CREATE TRIGGER `trg_prevent_negative_seats_insert`
+BEFORE INSERT ON `exam_slots`
+FOR EACH ROW
+BEGIN
+    IF NEW.seats_remaining < 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Validation Error: Initial seats_remaining cannot be negative';
+    END IF;
+END//
+
+DELIMITER ;
+
+
+-- ============================================================================
+-- INITIAL DATA SEEDING
+-- ============================================================================
+
+-- Default Global Application Settings
+INSERT INTO `settings` (`setting_key`, `setting_value`, `description`) VALUES
+('batch_threshold', '100', 'Minimum number of registered candidates required to form a batch'),
+('exam_fee', '2999', 'Assessment fee per candidate in local currency (INR)'),
+('negative_marking_enabled', '0', 'Boolean flag (1/0) indicating whether negative marking is active'),
+('retake_allowed', '0', 'Boolean flag (1/0) indicating whether candidates can re-attempt exams');
+
+-- Sample Initial Level Mapping Configurations (Levels 1 to 5)
+INSERT INTO `levels` (`level_number`, `level_name`, `min_percentage`, `max_percentage`, `description`) VALUES
+(1, 'Beginner', 0.00, 39.99, 'Foundation level skills requiring additional training'),
+(2, 'Elementary', 40.00, 54.99, 'Basic understanding of core concepts'),
+(3, 'Intermediate', 55.00, 69.99, 'Competent skill level ready for standard entry-level roles'),
+(4, 'Advanced', 70.00, 84.99, 'Strong proficiency across topics'),
+(5, 'Expert', 85.00, 100.00, 'Top tier mastery eligible for premium placement tracks');
