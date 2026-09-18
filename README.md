@@ -30,10 +30,11 @@ InternBoot manages the candidate assessment lifecycle from user registration and
 Follow these steps to set up and run the platform locally:
 
 ### Step 1: Install Dependencies
-Open your terminal in the project root directory and run:
+Open your terminal in the project root directory and run Composer to install required backend packages (`phpmailer/phpmailer`, `vlucas/phpdotenv`):
 ```bash
 composer install
 ```
+> ⚠️ **Prerequisite:** Ensure Composer and the PHP `zip` extension are installed/enabled on your system. This generates the `vendor/` directory containing required autoloaders.
 
 ### Step 2: Configure Environment (`.env`)
 Copy `.env.example` to create your private `.env` file:
@@ -41,7 +42,7 @@ Copy `.env.example` to create your private `.env` file:
 cp .env.example .env
 ```
 
-Open `.env` and fill in your local or Railway database credentials:
+Open `.env` and fill in your local or Railway database credentials, along with SMTP credentials for OTP email verification:
 ```env
 APP_ENV=development
 DB_HOST=okaido.proxy.rlwy.net
@@ -49,6 +50,15 @@ DB_PORT=18068
 DB_USER=root
 DB_PASSWORD=your_assigned_password
 DB_NAME=railway
+
+# SMTP Mail Configuration (Required for M3 candidate registration & OTP verification)
+MAIL_HOST=sandbox.smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=your_smtp_username
+MAIL_PASSWORD=your_smtp_password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@internboot.com
+MAIL_FROM_NAME="InternBoot"
 ```
 > ⚠️ **STRICT WARNING:** Never commit `.env` to Git! It is excluded by `.gitignore`.
 
@@ -78,6 +88,15 @@ DB_PORT=18068
 DB_USER=root
 DB_PASSWORD=YOUR_RAILWAY_PASSWORD
 DB_NAME=railway
+
+# SMTP Mail Delivery Variables (Production / Cloud)
+MAIL_HOST=smtp.sendgrid.net
+MAIL_PORT=587
+MAIL_USERNAME=apikey
+MAIL_PASSWORD=YOUR_SENDGRID_API_KEY
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@internboot.com
+MAIL_FROM_NAME="InternBoot"
 
 # Railway Platform Managed Variables
 MYSQL_DATABASE=railway

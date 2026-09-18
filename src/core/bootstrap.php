@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('Asia/Kolkata');
+
 $rootDir = dirname(__DIR__, 2);
 
 require_once $rootDir . '/db.php';

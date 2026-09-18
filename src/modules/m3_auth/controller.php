@@ -84,8 +84,19 @@ function handle_resend_otp_request(array $data, mysqli $conn): void {
         send_json_response('error', 'Could not resend code. Please try again.', null, 500);
     }
 
-    require_once __DIR__ . '/../../core/Mailer.php';
-    send_otp_email($email, $pending['full_name'], $otp);
+    try {
+        require_once __DIR__ . '/../../core/Mailer.php';
+        $sent = send_otp_email($email, $pending['full_name'], $otp);
+        if (!$sent) {
+            send_json_response('error', 'Could not send verification email. Contact support with your registration email.', null, 500);
+        }
+    } catch (RuntimeException $e) {
+        error_log('Resend OTP mail error: ' . $e->getMessage());
+        send_json_response('error', 'Could not send verification email. Contact support with your registration email.', null, 500);
+    } catch (Throwable $e) {
+        error_log('Resend OTP mail unexpected error: ' . $e->getMessage());
+        send_json_response('error', 'Could not send verification email. Contact support with your registration email.', null, 500);
+    }
 
     send_json_response('success', 'A new verification code has been sent.', null, 200);
 }

@@ -5,3 +5,6 @@ storage/*
 !storage/.gitkeep
 cookies.txt
 scratch/
+vendor/
+composer.phar
+

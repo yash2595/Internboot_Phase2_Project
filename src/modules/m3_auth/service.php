@@ -61,10 +61,18 @@ function initiate_registration(mysqli $conn, string $fullName, string $email, st
         return ['success' => false, 'message' => 'Could not initiate registration. Please try again.', 'code' => 500];
     }
 
-    require_once __DIR__ . '/../../core/Mailer.php';
-    $sent = send_otp_email($email, $fullName, $otp);
-    if (!$sent) {
-        return ['success' => false, 'message' => 'Could not send verification email. Please try again.', 'code' => 500];
+    try {
+        require_once __DIR__ . '/../../core/Mailer.php';
+        $sent = send_otp_email($email, $fullName, $otp);
+        if (!$sent) {
+            return ['success' => false, 'message' => 'Registration succeeded but verification email could not be sent. Contact support with your registration email.', 'code' => 500];
+        }
+    } catch (RuntimeException $e) {
+        error_log('Registration mail error: ' . $e->getMessage());
+        return ['success' => false, 'message' => 'Registration succeeded but verification email could not be sent. Contact support with your registration email.', 'code' => 500];
+    } catch (Throwable $e) {
+        error_log('Registration mail unexpected error: ' . $e->getMessage());
+        return ['success' => false, 'message' => 'Registration succeeded but verification email could not be sent. Contact support with your registration email.', 'code' => 500];
     }
 
     return ['success' => true];
