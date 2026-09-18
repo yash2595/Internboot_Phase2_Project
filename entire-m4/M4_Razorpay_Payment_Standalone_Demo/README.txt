@@ -1,27 +1,27 @@
-INTERNBOOT M4 - STANDALONE DEMO PAYMENT
+INTERNBOOT M4 - PAYU TEST PAYMENT MODULE
 
-URL:
-http://localhost/M4_Razorpay_Payment_Standalone_Demo/
+Purpose
+- M4 standalone payment module using PayU Hosted Checkout TEST environment.
+- Registration fee is fixed at INR 2999 for the requested test flow.
+- Payment is verified server-side before enrollment is marked eligible.
+- Success, failure, pending and cancelled/non-success paths do not create an eligible enrollment unless PayU verification returns success.
 
-Purpose:
-- Independent payment module for M4.
-- No Razorpay account, PAN, KYC or external gateway required.
-- Uses the existing MySQL schema and existing Railway database.
-- Reads exam_fee from settings (currently the schema seed defines exam_fee as 2999).
-- Creates a pending payment.
-- Generates a server-side demo verification token in the PHP session.
-- Only after successful server verification does it mark payment=success and enrollment=eligible.
+Setup
+1. Copy this folder into C:\xampp\htdocs\.
+2. Copy your working database .env into this folder root, or update it from .env.example.
+3. Add the PayU TEST key and TEST salt provided by your lead:
+   PAYU_TEST_KEY=...
+   PAYU_TEST_SALT=...
+4. Start Apache in XAMPP.
+5. Open: http://localhost/M4_Razorpay_Payment_Standalone_Demo/
+6. Use candidate_id and assessment_id query parameters if needed.
 
-Setup:
-1. Copy this folder into C:\xampp\htdocs\
-2. Rename it to M4_Razorpay_Payment_Standalone if desired.
-3. Copy your working .env from the dashboard project into this folder root.
-4. Keep the same DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME values.
-5. Start Apache in XAMPP.
-6. Open the URL above.
-7. Candidate defaults to candidate_id=1. You can use ?candidate_id=1&assessment_id=1.
+Important
+- Do not use production PayU credentials for this task.
+- Keep PAYU_TEST_SALT server-side only; never put it in HTML/JavaScript.
+- PayU Hosted Checkout needs reachable success/failure URLs. For localhost testing, if PayU cannot reach your local callback, use the project through a public HTTPS tunnel/domain or the test environment provided by your team.
+- The existing MySQL tables are reused; no SQL is included in this package.
+- Existing .env containing database secrets is intentionally not included in the final handoff ZIP.
 
-IMPORTANT:
-- Do NOT run any SQL from this package. It uses the existing database schema.
-- This is a demo/sandbox simulation, not a real payment processor.
-- Later a real gateway can replace the create/verify implementation without changing the checkout UI contract.
+Flow
+Register/Candidate -> Create pending payment -> PayU TEST checkout (INR 2999) -> PayU return -> response hash validation -> server-side Verify Payment API -> payment success -> enrollment eligible.
