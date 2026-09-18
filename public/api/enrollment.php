@@ -17,6 +17,8 @@ function demo_mode(): bool {
 function resolve_candidate_id(array $input = []): int {
     global $conn;
 
+    $hasSession = isset($_SESSION['candidate_id']) || isset($_SESSION['user_id']);
+
     if (isset($_SESSION['candidate_id']) && ctype_digit((string)$_SESSION['candidate_id'])) {
         return (int)$_SESSION['candidate_id'];
     }
@@ -31,7 +33,9 @@ function resolve_candidate_id(array $input = []): int {
         if ($row) return (int)$row['id'];
     }
 
-    if (demo_mode()) {
+    $appEnv = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
+
+    if (!$hasSession && demo_mode() && $appEnv !== 'production') {
         $cid = $input['candidate_id'] ?? $_GET['candidate_id'] ?? 1;
         if (ctype_digit((string)$cid)) return (int)$cid;
     }
