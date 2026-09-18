@@ -28,6 +28,28 @@ set_error_handler(function (int $errno, string $errstr, string $errfile, int $er
     return true;
 });
 
+register_shutdown_function(function (): void {
+    $error = error_get_last();
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
+        error_log(sprintf("[%s] PHP Fatal Error [%d]: %s in %s on line %d", 
+            date('Y-m-d H:i:s'), $error['type'], $error['message'], $error['file'], $error['line']));
+        
+        if (!headers_sent()) {
+            if (function_exists('send_json_response')) {
+                send_json_response('error', 'An internal server error occurred.', null, 500);
+            } else {
+                http_response_code(500);
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'An internal server error occurred.',
+                    'data' => null
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            }
+        }
+    }
+});
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start([
         'cookie_httponly' => true,
