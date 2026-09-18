@@ -24,6 +24,36 @@ function evaluate_attempt(mysqli $conn, int $attemptId, bool $generateCertificat
             return ['result'=>$existing,'already_evaluated'=>true];
         }
 
+        // Guard: only 'expired' (and 'in_progress' whose timer has silently run out)
+        // may be evaluated. A genuinely live in_progress attempt must not be graded.
+        if($attempt['status']==='in_progress'){
+            // Check whether the wall-clock end_time has already passed inside this
+            // transaction (same logic M6 uses for lazy expiry on candidate requests).
+            $timerRow=q_one($conn,'SELECT end_time <= NOW() AS timer_expired FROM attempts WHERE id=? FOR UPDATE','i',[$attemptId]);
+            if($timerRow && (int)$timerRow['timer_expired']===1){
+                // Timer has run out but M6 hasn't lazy-expired it yet.
+                // Auto-expire here so grading is fair and consistent with M6 behaviour.
+                $conn->query("UPDATE attempts SET status='expired', submitted_at=NOW() WHERE id={$attemptId} AND status='in_progress'");
+                // Re-read the attempt so $attempt['status'] reflects the new state downstream.
+                $attempt=get_attempt_for_update($conn,$attemptId);
+            } else {
+                // Candidate is actively mid-exam — reject without touching anything.
+                throw new InvalidArgumentException(
+                    'Cannot evaluate an attempt that is still in progress. '.
+                    'The candidate must submit or the attempt must expire first.'
+                );
+            }
+        }
+
+        // Defensive catch-all: reject any status that is neither 'submitted' nor 'expired'.
+        // With the current ENUM('in_progress','submitted','expired') this branch is
+        // unreachable, but guards against future schema changes.
+        if($attempt['status']!=='expired'){
+            throw new InvalidArgumentException(
+                "Attempt has unexpected status '{$attempt['status']}' and cannot be evaluated."
+            );
+        }
+
         $answers=get_answer_rows($conn,$attemptId);
         $correct=0;
         foreach($answers as $answer){
