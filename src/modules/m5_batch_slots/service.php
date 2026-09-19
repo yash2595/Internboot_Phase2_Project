@@ -96,10 +96,12 @@ function check_and_create_batch(int $assessmentId, mysqli $conn, ?int $customThr
         // Determine next weekend exam dates
         $weekends = calculate_next_weekend_dates();
 
-        // Standard slot configuration: 2 slots per day, 50 seats each (total 100 per day)
+        // Dynamic slot configuration: 2 slots per day, 4 total slots across weekend
+        // Minimum 50 seats per slot, or scaled to ensure capacity >= batch threshold
+        $slotCapacity = max(50, (int)ceil($threshold / 4));
         $slotTimings = [
-            ['start' => '10:00:00', 'end' => '11:00:00', 'capacity' => 50],
-            ['start' => '14:00:00', 'end' => '15:00:00', 'capacity' => 50],
+            ['start' => '10:00:00', 'end' => '11:00:00', 'capacity' => $slotCapacity],
+            ['start' => '14:00:00', 'end' => '15:00:00', 'capacity' => $slotCapacity],
         ];
 
         $createdSchedules = [];
@@ -239,6 +241,10 @@ function book_exam_slot(int $candidateId, int $assessmentId, int $examSlotId, my
         throw new Exception("Exam schedule is no longer open for booking (Status: " . $slot['schedule_status'] . ")");
     }
 
+    if (strtotime($slot['exam_date']) < strtotime(date('Y-m-d'))) {
+        throw new Exception("Exam slot date is in the past and cannot be booked");
+    }
+
     if ((int)$slot['seats_remaining'] <= 0) {
         throw new Exception("Selected exam slot is fully booked. No seats remaining.");
     }
@@ -298,9 +304,10 @@ function book_exam_slot(int $candidateId, int $assessmentId, int $examSlotId, my
 function fetch_available_slots(int $assessmentId, ?int $candidateId, mysqli $conn): array {
     if ($candidateId !== null && $candidateId > 0) {
         $enrollment = get_candidate_enrollment($candidateId, $assessmentId, $conn);
-        if ($enrollment && !empty($enrollment['batch_id'])) {
-            return get_available_slots_by_batch((int)$enrollment['batch_id'], $conn);
+        if (!$enrollment || empty($enrollment['batch_id'])) {
+            return [];
         }
+        return get_available_slots_by_batch((int)$enrollment['batch_id'], $conn);
     }
 
     return get_available_slots_by_assessment($assessmentId, $conn);

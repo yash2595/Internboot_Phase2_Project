@@ -225,8 +225,7 @@ function get_candidate_booked_attempt_for_update(int $candidateId, int $assessme
     $sql = "SELECT id, candidate_id, assessment_id, exam_slot_id, status 
             FROM attempts 
             WHERE candidate_id = ? AND assessment_id = ? 
-            LIMIT 1 
-            FOR UPDATE";
+            LIMIT 1";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         throw new Exception("Failed to prepare attempt lock query: " . (@$conn->error ?: 'query error'));
@@ -342,6 +341,7 @@ function get_available_slots_by_batch(int $batchId, mysqli $conn): array {
             JOIN exam_schedules sch ON s.exam_schedule_id = sch.id
             WHERE sch.batch_id = ? 
               AND sch.status = 'scheduled' 
+              AND sch.exam_date >= CURDATE()
               AND s.seats_remaining > 0
             ORDER BY sch.exam_date ASC, s.start_time ASC";
     $stmt = $conn->prepare($sql);
@@ -365,7 +365,6 @@ function get_available_slots_by_assessment(int $assessmentId, mysqli $conn): arr
                 s.id AS exam_slot_id,
                 s.exam_schedule_id,
                 sch.batch_id,
-                b.batch_number,
                 sch.exam_date,
                 s.start_time,
                 s.end_time,
@@ -376,6 +375,7 @@ function get_available_slots_by_assessment(int $assessmentId, mysqli $conn): arr
             JOIN batches b ON sch.batch_id = b.id
             WHERE b.assessment_id = ? 
               AND sch.status = 'scheduled' 
+              AND sch.exam_date >= CURDATE()
               AND s.seats_remaining > 0
             ORDER BY sch.exam_date ASC, s.start_time ASC";
     $stmt = $conn->prepare($sql);

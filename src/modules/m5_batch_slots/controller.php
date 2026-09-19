@@ -4,6 +4,20 @@
 require_once __DIR__ . '/service.php';
 
 /**
+ * Validates and parses a positive integer (> 0).
+ * Returns null if input is malformed, array, non-numeric string, zero, or negative.
+ */
+function parse_positive_int($val): ?int {
+    if (is_int($val)) {
+        return $val > 0 ? $val : null;
+    }
+    if (is_string($val) && preg_match('/^[1-9]\d*$/', trim($val))) {
+        return (int)$val;
+    }
+    return null;
+}
+
+/**
  * Controller handler for reserving an exam slot for an eligible candidate.
  * Matches API Contract: POST /api/slots/book.php
  *
@@ -13,9 +27,17 @@ require_once __DIR__ . '/service.php';
  */
 function handle_book_slot_request(array $input, mysqli $conn): void {
     $sessionCandidateId = !empty($_SESSION['candidate_id']) ? (int)$_SESSION['candidate_id'] : null;
-    $bodyCandidateId = isset($input['candidate_id']) && is_numeric($input['candidate_id']) ? (int)$input['candidate_id'] : null;
-    $assessmentId = isset($input['assessment_id']) ? (int)$input['assessment_id'] : 0;
-    $examSlotId = isset($input['exam_slot_id']) ? (int)$input['exam_slot_id'] : 0;
+    $role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? null;
+
+    $bodyCandidateId = null;
+    if (array_key_exists('candidate_id', $input) && $input['candidate_id'] !== null) {
+        $parsed = parse_positive_int($input['candidate_id']);
+        if ($parsed === null) {
+            send_json_response('error', 'A valid candidate_id is required', null, 400);
+            return;
+        }
+        $bodyCandidateId = $parsed;
+    }
 
     // 1. IDOR Authentication & Session Cross-Check
     if ($sessionCandidateId !== null) {
@@ -24,8 +46,11 @@ function handle_book_slot_request(array $input, mysqli $conn): void {
             return;
         }
         $candidateId = $sessionCandidateId;
-    } elseif (!empty($_SESSION['role']) && $_SESSION['role'] === 'admin' && $bodyCandidateId !== null && $bodyCandidateId > 0) {
-        // Admin role allowed to specify candidate_id
+    } elseif ($role === 'admin') {
+        if ($bodyCandidateId === null) {
+            send_json_response('error', 'A valid candidate_id is required', null, 400);
+            return;
+        }
         $candidateId = $bodyCandidateId;
     } else {
         // No authenticated session found
@@ -33,18 +58,23 @@ function handle_book_slot_request(array $input, mysqli $conn): void {
         return;
     }
 
-    // 2. Input Validation Checks
-    if ($candidateId <= 0) {
-        send_json_response('error', 'A valid candidate_id is required', null, 400);
+    // 2. Strict Input Validation Checks
+    if (!array_key_exists('assessment_id', $input) || $input['assessment_id'] === null) {
+        send_json_response('error', 'A valid assessment_id is required', null, 400);
         return;
     }
-
-    if ($assessmentId <= 0) {
+    $assessmentId = parse_positive_int($input['assessment_id']);
+    if ($assessmentId === null) {
         send_json_response('error', 'A valid assessment_id is required', null, 400);
         return;
     }
 
-    if ($examSlotId <= 0) {
+    if (!array_key_exists('exam_slot_id', $input) || $input['exam_slot_id'] === null) {
+        send_json_response('error', 'A valid exam_slot_id is required', null, 400);
+        return;
+    }
+    $examSlotId = parse_positive_int($input['exam_slot_id']);
+    if ($examSlotId === null) {
         send_json_response('error', 'A valid exam_slot_id is required', null, 400);
         return;
     }
@@ -54,7 +84,22 @@ function handle_book_slot_request(array $input, mysqli $conn): void {
         send_json_response('success', 'Exam slot booked successfully', $bookingData, 200);
         return;
     } catch (Throwable $e) {
-        send_json_response('error', $e->getMessage(), null, 400);
+        $msg = $e->getMessage();
+        // Mask internal database / SQL errors to avoid leaking schema names
+        if ($e instanceof mysqli_sql_exception || str_contains($msg, "Table '") || str_contains($msg, "doesn't exist") || str_contains($msg, 'SQLSTATE')) {
+            error_log("Database error in slot booking: " . $msg);
+            send_json_response('error', 'An internal server error occurred.', null, 500);
+            return;
+        }
+        if (stripos($msg, 'already has a booked slot') !== false || stripos($msg, 'fully booked') !== false) {
+            send_json_response('error', $msg, null, 409);
+            return;
+        }
+        if (stripos($msg, 'not eligible') !== false) {
+            send_json_response('error', $msg, null, 403);
+            return;
+        }
+        send_json_response('error', $msg, null, 400);
         return;
     }
 }
@@ -63,33 +108,53 @@ function handle_book_slot_request(array $input, mysqli $conn): void {
  * Controller handler for batch threshold check and automatic batch creation.
  * Matches API Contract: POST /api/slots/auto_batch.php
  *
- * Security: Enforces Admin role access (Fix #3 per Tech Lead review).
+ * Security: Enforces Admin role access (strictly admin, staff excluded).
  */
 function handle_auto_batch_request(array $input, mysqli $conn): void {
-    // RBAC Security Check: Admin Access Only
-    if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    // RBAC Security Check: Strictly Admin Access Only
+    $role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? null;
+    if ($role !== 'admin') {
         send_json_response('error', 'Unauthorized: admin access required', null, 403);
         return;
     }
 
-    $assessmentId = isset($input['assessment_id']) ? (int)$input['assessment_id'] : 0;
-    $customThreshold = isset($input['threshold']) && is_numeric($input['threshold']) ? (int)$input['threshold'] : null;
-
-    if ($assessmentId <= 0) {
+    if (!array_key_exists('assessment_id', $input) || $input['assessment_id'] === null) {
+        send_json_response('error', 'A valid assessment_id is required', null, 400);
+        return;
+    }
+    $assessmentId = parse_positive_int($input['assessment_id']);
+    if ($assessmentId === null) {
         send_json_response('error', 'A valid assessment_id is required', null, 400);
         return;
     }
 
-    if ($customThreshold !== null && $customThreshold <= 0) {
-        send_json_response('error', 'Threshold must be a positive integer', null, 400);
-        return;
+    $customThreshold = null;
+    if (array_key_exists('threshold', $input) && $input['threshold'] !== null) {
+        $customThreshold = parse_positive_int($input['threshold']);
+        if ($customThreshold === null) {
+            send_json_response('error', 'Threshold must be a positive integer', null, 400);
+            return;
+        }
     }
 
     try {
-        $batchResult = check_and_create_batch($assessmentId, $conn, $customThreshold);
+        $batches = create_all_eligible_batches($assessmentId, $conn, $customThreshold);
 
-        if ($batchResult !== null) {
-            send_json_response('success', 'Batch and exam schedules formed successfully', $batchResult, 201);
+        if (!empty($batches)) {
+            $firstBatch = $batches[0];
+            $threshold = get_batch_threshold($conn, $customThreshold);
+            $eligibleCount = get_unbatched_eligible_count($assessmentId, $conn);
+
+            // Backward-compatible unified payload: flat properties + batches array
+            $responseData = array_merge($firstBatch, [
+                'assessment_id' => $assessmentId,
+                'batches_formed' => count($batches),
+                'batches' => $batches,
+                'remaining_eligible_count' => $eligibleCount,
+                'threshold' => $threshold
+            ]);
+
+            send_json_response('success', count($batches) . ' batch(es) and exam schedules formed successfully', $responseData, 201);
             return;
         } else {
             $threshold = get_batch_threshold($conn, $customThreshold);
@@ -105,7 +170,13 @@ function handle_auto_batch_request(array $input, mysqli $conn): void {
             return;
         }
     } catch (Throwable $e) {
-        send_json_response('error', $e->getMessage(), null, 400);
+        $msg = $e->getMessage();
+        if ($e instanceof mysqli_sql_exception || str_contains($msg, "Table '") || str_contains($msg, "doesn't exist") || str_contains($msg, 'SQLSTATE')) {
+            error_log("Database error in auto batch: " . $msg);
+            send_json_response('error', 'An internal server error occurred.', null, 500);
+            return;
+        }
+        send_json_response('error', $msg, null, 400);
         return;
     }
 }
@@ -115,17 +186,44 @@ function handle_auto_batch_request(array $input, mysqli $conn): void {
  * Matches API Contract: GET /api/slots/available.php
  */
 function handle_list_slots_request(array $input, mysqli $conn): void {
-    $assessmentId = isset($input['assessment_id']) ? (int)$input['assessment_id'] : 0;
-    $candidateId = isset($input['candidate_id']) && is_numeric($input['candidate_id']) ? (int)$input['candidate_id'] : null;
+    $sessionCandidateId = !empty($_SESSION['candidate_id']) ? (int)$_SESSION['candidate_id'] : null;
+    $role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? null;
 
-    // If candidate is logged in via session and candidate_id wasn't explicitly provided, use session
-    if ($candidateId === null && !empty($_SESSION['candidate_id'])) {
-        $candidateId = (int)$_SESSION['candidate_id'];
-    }
-
-    if ($assessmentId <= 0) {
+    if (!array_key_exists('assessment_id', $input) || $input['assessment_id'] === null) {
         send_json_response('error', 'A valid assessment_id parameter is required', null, 400);
         return;
+    }
+    $assessmentId = parse_positive_int($input['assessment_id']);
+    if ($assessmentId === null) {
+        send_json_response('error', 'A valid assessment_id parameter is required', null, 400);
+        return;
+    }
+
+    $queryCandidateId = null;
+    if (array_key_exists('candidate_id', $input) && $input['candidate_id'] !== null && $input['candidate_id'] !== '') {
+        $queryCandidateId = parse_positive_int($input['candidate_id']);
+        if ($queryCandidateId === null) {
+            send_json_response('error', 'A valid candidate_id parameter is required', null, 400);
+            return;
+        }
+    }
+
+    // IDOR Security Check on candidate scoping
+    if ($queryCandidateId !== null) {
+        if ($sessionCandidateId !== null) {
+            if ($queryCandidateId !== $sessionCandidateId && $role !== 'admin') {
+                send_json_response('error', 'Forbidden: cannot view slots for another candidate', null, 403);
+                return;
+            }
+            $candidateId = $queryCandidateId;
+        } elseif ($role === 'admin') {
+            $candidateId = $queryCandidateId;
+        } else {
+            send_json_response('error', 'Unauthorized: candidate authentication required', null, 401);
+            return;
+        }
+    } else {
+        $candidateId = $sessionCandidateId;
     }
 
     try {
@@ -133,7 +231,9 @@ function handle_list_slots_request(array $input, mysqli $conn): void {
         send_json_response('success', 'Available exam slots retrieved successfully', $slots, 200);
         return;
     } catch (Throwable $e) {
-        send_json_response('error', $e->getMessage(), null, 500);
+        $msg = $e->getMessage();
+        error_log("Error listing available slots: " . $msg);
+        send_json_response('error', 'An internal server error occurred.', null, 500);
         return;
     }
 }
