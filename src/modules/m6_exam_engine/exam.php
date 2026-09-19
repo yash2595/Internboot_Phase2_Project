@@ -1,5 +1,13 @@
 <?php
-session_start();
+if (file_exists(dirname(__DIR__, 2) . '/core/bootstrap.php')) {
+    require_once dirname(__DIR__, 2) . '/core/bootstrap.php';
+} elseif (file_exists(__DIR__ . '/../../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../../src/core/bootstrap.php';
+} else {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -597,17 +605,22 @@ session_start();
         InternBoot Level Assessment
     </div>
 
-    <div class="timer-container">
+    <div style="display:flex; align-items:center; gap:20px;">
+        <?php if (!empty($_SESSION['full_name'])): ?>
+            <div style="font-size:14px; color:#4b5563;">
+                Candidate: <strong style="color:#111827;"><?php echo htmlspecialchars($_SESSION['full_name']); ?></strong>
+            </div>
+        <?php endif; ?>
 
-        <span>Time Left</span>
-
-        <span
-            id="timer"
-            class="timer"
-        >
-            --:--
-        </span>
-
+        <div class="timer-container">
+            <span>Time Left</span>
+            <span
+                id="timer"
+                class="timer"
+            >
+                --:--
+            </span>
+        </div>
     </div>
 
 </header>
@@ -794,8 +807,23 @@ session_start();
 <script>
 
 /* ==========================================
-   CONFIGURATION
+   CONFIGURATION & API RESOLVER
 ========================================== */
+
+function getApiUrl(endpoint) {
+    const path = window.location.pathname;
+    const m6Idx = path.indexOf('/src/modules/m6_exam_engine');
+    if (m6Idx !== -1) {
+        const root = path.substring(0, m6Idx);
+        return `${root}/public/api/exam/${endpoint}`;
+    }
+    const pubIdx = path.indexOf('/public');
+    if (pubIdx !== -1) {
+        const root = path.substring(0, pubIdx);
+        return `${root}/public/api/exam/${endpoint}`;
+    }
+    return `api/${endpoint}`;
+}
 
 const urlParams = new URLSearchParams(window.location.search);
 
@@ -846,34 +874,31 @@ const answerMap = {};
 async function enterFullscreen() {
 
     try {
-
-        await document.documentElement.requestFullscreen();
-
-        document.getElementById(
-            "loading"
-        ).style.display = "none";
-
-        document.getElementById(
-            "exam"
-        ).style.display = "grid";
-
-        buildQuestionNavigator();
-
-        startTimer();
-
-        renderQuestion();
-
+        if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+        } else if (document.documentElement.webkitRequestFullscreen) {
+            await document.documentElement.webkitRequestFullscreen();
+        }
     } catch (error) {
-
         console.warn(
-            "Fullscreen request failed:",
+            "Fullscreen request not granted, continuing in standard view:",
             error
         );
-
-        alert(
-            "Fullscreen is required to start the assessment."
-        );
     }
+
+    document.getElementById(
+        "loading"
+    ).style.display = "none";
+
+    document.getElementById(
+        "exam"
+    ).style.display = "grid";
+
+    buildQuestionNavigator();
+
+    startTimer();
+
+    renderQuestion();
 }
 
 
@@ -890,46 +915,41 @@ async function initializeExam() {
          * Start or resume attempt.
          */
         const startResponse = await fetch(
-            `api/start_exam.php?attempt_id=${attemptId}`
+            getApiUrl(`start_exam.php?attempt_id=${attemptId}`)
         );
 
-        const startData = await startResponse.json();
+        const startRaw = await startResponse.json();
+        const startPayload = startRaw.data || startRaw;
+        const isStartSuccess = startRaw.status === 'success' || startRaw.success === true || startPayload.success === true;
 
-
-        if (!(startData.status === "success")) {
-
-            showError(startData.message);
-
+        if (!isStartSuccess) {
+            showError(startRaw.message || "Failed to start assessment");
             return;
         }
 
-
         remainingSeconds =
-            Number(startData.data?.remaining_seconds ?? startData.remaining_seconds);
-
+            Number(startPayload.remaining_seconds);
 
         /*
          * Step 2:
          * Load questions.
          */
         const questionResponse = await fetch(
-            `api/get_questions.php?attempt_id=${attemptId}`
+            getApiUrl(`get_questions.php?attempt_id=${attemptId}`)
         );
 
-        const questionData =
+        const questionRaw =
             await questionResponse.json();
+        const questionPayload = questionRaw.data || questionRaw;
+        const isQuestionSuccess = questionRaw.status === 'success' || questionRaw.success === true || questionPayload.success === true;
 
-
-        if (!(questionData.status === "success")) {
-
-            showError(questionData.message);
-
+        if (!isQuestionSuccess) {
+            showError(questionRaw.message || "Failed to load questions");
             return;
         }
 
-
         questions =
-            questionData.data?.questions ?? questionData.questions ?? [];
+            questionPayload.questions || [];
 
         questions.forEach(question => {
             if (question.selected_option_id !== null) {
@@ -942,7 +962,7 @@ async function initializeExam() {
         if (questions.length === 0) {
 
             showError(
-                "No questions are available."
+                "No questions are currently published for this assessment. Please contact your administrator."
             );
 
             return;
@@ -951,44 +971,23 @@ async function initializeExam() {
 
         /*
         * Step 3:
-        * Wait for candidate to enter fullscreen.
+        * Ready - candidate clicks to enter fullscreen & start.
         */
         document.getElementById(
             "loading"
         ).innerHTML =
             `
-                <div>Assessment is ready.</div>
+                <div style="font-size:18px; font-weight:600; margin-bottom:10px;">Assessment Ready</div>
+                <div style="color:#6b7280; margin-bottom:20px;">${questions.length} questions loaded. Click below to begin your examination.</div>
 
                 <button
                     id="fullscreenBtn"
                     class="btn-primary"
-                    style="margin-top:20px;"
                     onclick="enterFullscreen()"
                 >
-                    Enter Fullscreen & Start Assessment
+                    Start Assessment & Enter Fullscreen
                 </button>
             `;
-
-
-        /*
-         * Step 4:
-         * Build question navigator.
-         */
-        buildQuestionNavigator();
-
-
-        /*
-         * Step 5:
-         * Start timer.
-         */
-        startTimer();
-
-
-        /*
-         * Step 6:
-         * Render first question.
-         */
-        renderQuestion();
 
     }
 
@@ -997,7 +996,7 @@ async function initializeExam() {
         console.error(error);
 
         showError(
-            "Unable to load the assessment."
+            "Unable to load the assessment. Please check your network connection."
         );
 
     }
@@ -1010,6 +1009,10 @@ async function initializeExam() {
 ========================================== */
 
 function startTimer() {
+
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
 
     updateTimerDisplay();
 
@@ -1039,6 +1042,8 @@ function startTimer() {
     startPeriodicAutosave();
 
 }
+
+
 
 document.addEventListener(
     "contextmenu",
@@ -1184,7 +1189,7 @@ async function syncCurrentAnswers() {
         try {
 
             const response = await fetch(
-                "api/save_answer.php",
+                getApiUrl("save_answer.php"),
                 {
                     method: "POST",
                     headers: {
@@ -1199,8 +1204,9 @@ async function syncCurrentAnswers() {
             );
 
             const data = await response.json();
+            const isAutosaveSuccess = data.status === 'success' || data.success === true;
 
-            if (!(data.status === "success")) {
+            if (!isAutosaveSuccess) {
                 console.warn(
                     "Autosave failed:",
                     data.message
@@ -1651,7 +1657,7 @@ async function saveAnswer(
 
         const response =
             await fetch(
-                "api/save_answer.php",
+                getApiUrl("save_answer.php"),
                 {
                     method: "POST",
 
@@ -1678,9 +1684,9 @@ async function saveAnswer(
 
         const data =
             await response.json();
+        const isSaveSuccess = data.status === 'success' || data.success === true;
 
-
-        if (!(data.status === "success")) {
+        if (!isSaveSuccess) {
 
             saveStatus.className =
                 "save-status error";
@@ -1695,14 +1701,12 @@ async function saveAnswer(
         }
 
 
-        if (data.status === "success") {
-            saveStatus.className =
-                "save-status success";
+        saveStatus.className =
+            "save-status success";
 
 
-            saveStatus.textContent =
-                "Answer saved";
-        }
+        saveStatus.textContent =
+            "Answer saved";
 
     }
 
@@ -1826,7 +1830,7 @@ async function submitExam(
 
         const response =
             await fetch(
-                "api/submit_exam.php",
+                getApiUrl("submit_exam.php"),
                 {
                     method: "POST",
 
@@ -1845,9 +1849,9 @@ async function submitExam(
 
         const data =
             await response.json();
+        const isSubmitSuccess = data.status === 'success' || data.success === true;
 
-
-        if (data.status === "success") {
+        if (isSubmitSuccess) {
 
             alert(
                 autoSubmit
