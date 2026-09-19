@@ -1,8 +1,13 @@
 <?php
 
-require_once __DIR__ . '/../../../src/core/bootstrap.php';
-
-header('Content-Type: application/json');
+// Load central bootstrap
+if (file_exists(dirname(__DIR__, 3) . '/src/core/bootstrap.php')) {
+    require_once dirname(__DIR__, 3) . '/src/core/bootstrap.php';
+} elseif (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../../../src/core/bootstrap.php';
+} else {
+    require_once __DIR__ . '/../src/core/bootstrap.php';
+}
 
 try {
 
@@ -10,6 +15,24 @@ try {
      * 1. Candidate authentication
      * M5 shares candidate_id through the PHP session.
      */
+    if (
+        (!isset($_SESSION['candidate_id']) || !is_numeric($_SESSION['candidate_id'])) &&
+        isset($_SESSION['user_id']) && is_numeric($_SESSION['user_id']) &&
+        isset($conn)
+    ) {
+        $userStmt = $conn->prepare("SELECT id FROM candidates WHERE user_id = ? LIMIT 1");
+        if ($userStmt) {
+            $uId = (int)$_SESSION['user_id'];
+            $userStmt->bind_param("i", $uId);
+            $userStmt->execute();
+            $userRes = $userStmt->get_result()->fetch_assoc();
+            $userStmt->close();
+            if ($userRes) {
+                $_SESSION['candidate_id'] = (int)$userRes['id'];
+            }
+        }
+    }
+
     if (
         !isset($_SESSION['candidate_id']) ||
         !is_numeric($_SESSION['candidate_id'])
@@ -61,13 +84,13 @@ try {
 
         FROM attempts a
 
-        INNER JOIN exam_slots es
+        LEFT JOIN exam_slots es
             ON es.id = a.exam_slot_id
 
-        INNER JOIN exam_schedules sch
+        LEFT JOIN exam_schedules sch
             ON sch.id = es.exam_schedule_id
 
-        INNER JOIN assessments ass
+        LEFT JOIN assessments ass
             ON ass.id = a.assessment_id
 
         WHERE a.id = ?
@@ -100,7 +123,6 @@ try {
      * 4. Attempt must exist and belong to logged-in candidate.
      */
     if (!$attempt) {
-
         send_json_response('error', 'Attempt not found or access denied', null, 404);
     }
 
@@ -111,7 +133,6 @@ try {
         $attempt['status'] === 'submitted' ||
         $attempt['status'] === 'expired'
     ) {
-
         send_json_response('error', 'This attempt is no longer available', [
             'status' => $attempt['status']
         ], 403);
@@ -176,11 +197,21 @@ try {
 
         $updateStmt->execute();
 
-        /*
-         * Re-read the values that were just committed.
-         */
-        $attempt['start_time'] = $startTime;
-        $attempt['end_time'] = $endTime;
+        if ($updateStmt->affected_rows === 1) {
+            $attempt['start_time'] = $startTime;
+            $attempt['end_time'] = $endTime;
+        } else {
+            // dusri request jeet gayi race — DB se actual values lo
+            $refetch = $conn->prepare('SELECT start_time, end_time FROM attempts WHERE id = ? AND candidate_id = ?');
+            $refetch->bind_param('ii', $attemptId, $candidateId);
+            $refetch->execute();
+            $fresh = $refetch->get_result()->fetch_assoc();
+            $refetch->close();
+            if ($fresh) {
+                $attempt['start_time'] = $fresh['start_time'];
+                $attempt['end_time'] = $fresh['end_time'];
+            }
+        }
 
         $updateStmt->close();
     }
@@ -236,9 +267,10 @@ try {
     }
 
     /*
-     * 9. Successful response.
+     * 9. Successful response using standard helper.
      */
     send_json_response('success', 'Exam started successfully', [
+        'success' => true,
         'attempt_id' => (int) $attempt['attempt_id'],
         'candidate_id' => (int) $attempt['candidate_id'],
         'assessment_id' => (int) $attempt['assessment_id'],
@@ -260,6 +292,6 @@ try {
     ], 200);
 
 } catch (Throwable $e) {
-
+    error_log('start_exam error: ' . $e->getMessage());
     send_json_response('error', 'Internal server error', null, 500);
 }
