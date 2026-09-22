@@ -16,7 +16,7 @@
                         </li>
                     <?php endif; ?>
                     <li class="nav-item">
-                        <a class="nav-link text-danger" href="/logout.php">Logout (<?php echo htmlspecialchars($_SESSION['full_name'] ?? 'User'); ?>)</a>
+                     <a class="nav-link text-danger" href="/api/auth/logout.php">Logout ...
                     </li>
                 <?php else: ?>
                     <li class="nav-item">
