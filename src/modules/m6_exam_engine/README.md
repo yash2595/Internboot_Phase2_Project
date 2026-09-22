@@ -41,20 +41,26 @@ The M6 Online Assessment Engine provides the candidate-facing online assessment 
 ```text
 src/modules/m6_exam_engine/
 ├── config/
-│   └── database.php
+│   └── database.php         # Backward-compatible bridge forwarding to src/core/bootstrap.php
 ├── data/
-│   └── seed_questions.php
-├── exam.php
-├── index.php
-└── README.md
+│   └── seed_questions.php   # Development question bank seeder
+├── exam.php                 # Assessment UI (fullscreen mode & proctoring deterrents)
+├── index.php                # Connectivity & bootstrap status check
+└── README.md                # Module technical documentation
 
 public/api/exam/
-├── start_exam.php
-├── get_questions.php
-├── save_answer.php
-├── exam_status.php
-└── submit_exam.php
+├── start_exam.php           # Initiates attempt & validates server-authoritative timer
+├── get_questions.php        # Serves deterministic randomized MCQs (no answer keys)
+├── save_answer.php          # Real-time answer persistence with anti-tampering checks
+├── exam_status.php          # Heartbeat endpoint returning progress & remaining time
+└── submit_exam.php          # Final submission & atomic attempt locking
 ```
+
+### Shared Team Core Dependencies
+M6 consumes the central project infrastructure:
+- **`src/core/bootstrap.php`**: Loaded by all public API endpoints (`require_once __DIR__ . '/../../../src/core/bootstrap.php'`) for centralized session handling, error reporting, and utilities.
+- **`db.php`**: Central database connection handler establishing MySQLi connection (`$conn`) to the shared Railway cloud database.
+- **`.env`**: Central environment configuration defining `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME`.
 
 ## 4. Assessment Configuration
 
@@ -493,30 +499,42 @@ Approved MCQ questions
 
 The seed data is intended for local development/testing and is not final production assessment content.
 
-## 23. Local Development
+## 23. Module Execution & Environment Configuration
 
-The M6 standalone development environment used:
+The M6 assessment engine operates within the team's repository architecture and utilizes the central project configuration via `src/core/bootstrap.php` and `db.php`:
 
-```text
-Apache: 8080
-MySQL: 3307
-Database: internboot_m6_dev
-Timezone: Asia/Kolkata
+### Central Cloud Database (`.env`)
+Database parameters are maintained in the root `.env` configuration:
+```env
+DB_HOST=tokaido.proxy.rlwy.net
+DB_PORT=18068
+DB_USER=root
+DB_PASSWORD=YOUR_RAILWAY_PASSWORD
+DB_NAME=railway
+APP_ENV=development
 ```
 
-Standalone health check:
+### Accessing M6 in the Integrated Repository
+When serving the project from the repository root:
 
-```text
-http://localhost:8080/internboot-m6/
-```
+- **Health & Diagnostic Check**:
+  ```text
+  GET /src/modules/m6_exam_engine/index.php
+  ```
+  Verifies that database connectivity, session bootstrap, and table accessibility are healthy.
 
-Standalone assessment page:
+- **Candidate Assessment Interface**:
+  ```text
+  GET /src/modules/m6_exam_engine/exam.php?attempt_id=<ATTEMPT_ID>
+  ```
+  Renders the candidate-facing assessment experience in fullscreen mode with client-side deterrents and autosave. (Requires an active authenticated candidate session initialized upstream by M1/M5).
 
-```text
-http://localhost:8080/internboot-m6/exam.php?attempt_id=<ATTEMPT_ID>
-```
-
-The final URL may change after application integration.
+- **Public Assessment API Endpoints**:
+  - `POST /public/api/exam/start_exam.php?attempt_id=<ATTEMPT_ID>`
+  - `GET  /public/api/exam/get_questions.php?attempt_id=<ATTEMPT_ID>`
+  - `POST /public/api/exam/save_answer.php`
+  - `GET  /public/api/exam/exam_status.php?attempt_id=<ATTEMPT_ID>`
+  - `POST /public/api/exam/submit_exam.php`
 
 ## 24. Testing Completed
 
@@ -586,18 +604,18 @@ Final scoring and level assignment belong to M7.
 
 ## 26. Production Integration Checklist
 
-Before production deployment:
+Current Status:
 
-1. Use the project's shared authentication/session bootstrap.
-2. Use the project's shared database configuration.
-3. Do not expose development database credentials.
-4. Remove or disable development seed scripts if not required.
-5. Use HTTPS.
-6. Freeze approved question banks during active assessments.
-7. Route the candidate-facing assessment page through the main application.
-8. Verify M7 can consume submitted attempts and answers.
-9. Verify production timezone configuration.
-10. Perform a final integrated end-to-end test.
+1. [x] Use the project's shared authentication/session bootstrap (`src/core/bootstrap.php`).
+2. [x] Use the project's shared database configuration (`db.php` + `.env` Railway parameters).
+3. [x] Do not expose development database credentials (`.env` protected via `.gitignore`).
+4. [ ] Remove or disable development seed scripts if not required in production.
+5. [ ] Use HTTPS in production deployment.
+6. [x] Freeze approved question banks during active assessments.
+7. [x] Route the candidate-facing assessment page through the main application.
+8. [x] Verify M7 can consume submitted attempts and answers (`evaluation_pending = true`).
+9. [x] Verify production timezone configuration (`Asia/Kolkata` set in `bootstrap.php`).
+10. [x] Perform a final integrated end-to-end test (26/26 automated assessment lifecycle and security checks verified).
 
 ## 27. Responsibility Boundary
 
@@ -651,17 +669,19 @@ The implementation was developed independently against the agreed database/sessi
 The M6 implementation does not require changes to the shared database schema and is designed to integrate with the project's authentication, slot-booking and evaluation modules.
 
 ## 29. Status
-
-**Implementation:** Complete
-
-**Testing:** Completed
-
+ 
+**Implementation:** Complete & Integrated with Shared Core
+ 
+**Testing:** 26/26 Automated Lifecycle, Timer & Security Checks Passed
+ 
 **Git branch:** `m6-assessment-engine`
-
-**Commit:** `a936858 — Add M6 online assessment engine`
-
-**Repository status:** M6 branch merged into `main`
-
+ 
+**Commit:** `fix(m6): switch from local database to centralized bootstrap.php`
+ 
+**Pull Request:** `#15` (Merged into `main` by Yash Mishra)
+ 
+**Repository status:** Active on `main` branch
+ 
 **Module:** M6 — Online Assessment Engine
-
+ 
 **Project:** InternBoot Automated Level Assessment & Certification Platform

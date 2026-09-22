@@ -1,24 +1,7 @@
 <?php
+declare(strict_types=1);
 
-date_default_timezone_set('Asia/Kolkata');
-
-$host = "127.0.0.1";
-$port = 3307;
-$username = "root";
-$password = "";
-$database = "internboot_m6_dev";
-
-$conn = new mysqli(
-    $host,
-    $username,
-    $password,
-    $database,
-    $port
-);
-
-if ($conn->connect_error) {
-    http_response_code(500);
-    die("Database connection failed");
-}
-
-$conn->set_charset("utf8mb4");
+// Backward-compatible bridge: forwards to the single canonical
+// bootstrap so M6 shares one DB connection code path with the rest
+// of the app. Do not add connection logic here — see src/core/bootstrap.php.
+require_once dirname(__DIR__, 4) . '/src/core/bootstrap.php';

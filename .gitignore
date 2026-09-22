@@ -11,6 +11,10 @@
 !/public/uploads/.gitkeep
 /public/certificates/generated/*
 !/public/certificates/generated/.gitkeep
+storage/*
+!storage/.gitkeep
+cookies.txt
+scratch/
 
 # IDE & Editor files
 .vscode/
