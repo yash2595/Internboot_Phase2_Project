@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard - InternBoot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'intern-blue': '#2563eb',
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 flex h-screen overflow-hidden">
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 h-full flex-shrink-0 transition-transform absolute lg:relative z-40 -translate-x-full lg:translate-x-0">
+    <div class="h-16 flex items-center px-6 border-b border-slate-200">
+      <img src="/assets/internboot-logo.png" alt="InternBoot Logo" class="h-8">
+    </div>
+    <nav class="p-4 space-y-1">
+      <a href="index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition"><i data-lucide="layout-dashboard" class="h-5 w-5"></i> Dashboard</a>
+      <a href="candidates.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition"><i data-lucide="users" class="h-5 w-5"></i> Candidates</a>
+      <a href="results.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition"><i data-lucide="file-check-2" class="h-5 w-5"></i> Results</a>
+      <a href="certificates.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition"><i data-lucide="award" class="h-5 w-5"></i> Certificates</a>
+      <a href="questions.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition"><i data-lucide="help-circle" class="h-5 w-5"></i> Questions</a>
+      <a href="batches.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition"><i data-lucide="calendar-days" class="h-5 w-5"></i> Batches</a>
+      <a href="placement.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition"><i data-lucide="building-2" class="h-5 w-5"></i> Placement</a>
+      <a href="setting.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition"><i data-lucide="settings" class="h-5 w-5"></i> Settings</a>
+    </nav>
+  </aside>
+
+  <!-- Overlay -->
+  <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/50 z-30 hidden lg:hidden"></div>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col h-screen overflow-hidden">
+    <!-- Header -->
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0">
+      <div class="flex items-center gap-4">
+        <button id="menuButton" class="lg:hidden text-slate-500 hover:text-slate-700">
+          <i data-lucide="menu" class="h-6 w-6"></i>
+        </button>
+        <h1 class="text-xl font-semibold text-slate-800">Admin Dashboard</h1>
+      </div>
+
+      <div class="flex items-center gap-4 relative">
+        <button id="notificationButton" class="text-slate-500 hover:text-slate-700 relative">
+          <i data-lucide="bell" class="h-5 w-5"></i>
+        </button>
+        <div id="notificationDropdown" class="hidden absolute right-12 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-slate-100 p-4 z-50">
+          <p class="text-sm text-slate-500 text-center">No new notifications</p>
+        </div>
+
+        <button id="userButton" class="flex items-center gap-2">
+          <div id="adminAvatar" class="h-8 w-8 rounded-full bg-intern-blue text-white flex items-center justify-center font-medium overflow-hidden">
+            <span id="adminAvatarInitial">A</span>
+            <img id="adminAvatarImage" src="" alt="Avatar" class="h-full w-full object-cover hidden">
+          </div>
+          <span id="adminHeaderName" class="text-sm font-medium text-slate-700 hidden sm:block">Admin</span>
+          <i data-lucide="chevron-down" class="h-4 w-4 text-slate-400"></i>
+        </button>
+
+        <div id="userDropdown" class="hidden absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-50">
+          <a href="setting.html" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Profile</a>
+          <div class="border-t border-slate-100 my-1"></div><a href="#" class="block px-4 py-2 text-sm text-red-600 hover:bg-slate-50">Logout</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Scrollable Area -->
+    <main class="flex-1 overflow-auto bg-slate-50">
+
+      <div class="p-6 max-w-4xl mx-auto">
+        <h2 class="text-2xl font-semibold text-slate-800 mb-6">Settings</h2>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h3 class="font-semibold text-slate-800">Profile Settings</h3>
+            </div>
+            <div class="p-6 flex flex-col md:flex-row gap-8">
+                <div class="flex flex-col items-center gap-4">
+                    <div class="h-24 w-24 rounded-full bg-intern-blue text-white flex items-center justify-center text-3xl font-medium overflow-hidden border-4 border-slate-50 relative group">
+                        <span id="settingsAvatarInitial">A</span>
+                        <img id="settingsAvatarImage" src="" alt="Avatar" class="h-full w-full object-cover hidden">
+                        <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer" id="changePhotoButton">
+                            <i data-lucide="camera" class="h-6 w-6 text-white"></i>
+                        </div>
+                    </div>
+                    <input type="file" id="avatarUpload" class="hidden" accept="image/png, image/jpeg, image/webp">
+                </div>
+
+                <div class="flex-1 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label class="block text-sm font-medium text-slate-700">Full Name
+                            <input id="fullName" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-intern-blue/20">
+                        </label>
+                        <label class="block text-sm font-medium text-slate-700">Email Address
+                            <input id="email" type="email" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-intern-blue/20">
+                        </label>
+                    </div>
+                    <label class="block text-sm font-medium text-slate-700">Phone Number
+                        <input id="phone" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-intern-blue/20">
+                    </label>
+                    <div class="pt-2">
+                        <button id="saveChangesButton" class="bg-intern-blue hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium text-sm">Save Profile</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h3 class="font-semibold text-slate-800">System Preferences</h3>
+            </div>
+            <div class="p-6 space-y-6">
+                <div>
+                    <h4 class="text-sm font-medium text-slate-700 mb-3">Email Notifications</h4>
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="batchNotifications" class="rounded border-slate-300 text-intern-blue focus:ring-intern-blue">
+                            <span class="text-sm text-slate-600">Batch Creation & Reminders</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="assessmentNotifications" class="rounded border-slate-300 text-intern-blue focus:ring-intern-blue">
+                            <span class="text-sm text-slate-600">Assessment Completion Alerts</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="placementNotifications" class="rounded border-slate-300 text-intern-blue focus:ring-intern-blue">
+                            <span class="text-sm text-slate-600">Placement Status Updates</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="certificateNotifications" class="rounded border-slate-300 text-intern-blue focus:ring-intern-blue">
+                            <span class="text-sm text-slate-600">Certificate Generation Events</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-medium text-slate-700 mb-3">Dashboard Auto-Refresh</h4>
+                    <select id="refreshPreference" class="w-full md:w-64 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-intern-blue/20">
+                        <option value="none">Never</option>
+                        <option value="5m">Every 5 minutes</option>
+                        <option value="15m">Every 15 minutes</option>
+                        <option value="30m">Every 30 minutes</option>
+                    </select>
+                </div>
+
+                <div class="pt-2">
+                    <button id="savePreferences" class="bg-intern-blue hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium text-sm">Save Preferences</button>
+                </div>
+            </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
+

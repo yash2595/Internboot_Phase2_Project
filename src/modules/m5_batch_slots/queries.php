@@ -177,9 +177,12 @@ function get_candidate_enrollment(int $candidateId, int $assessmentId, mysqli $c
  * Checks if a candidate already has an active or booked exam attempt for an assessment.
  */
 function get_candidate_booked_attempt(int $candidateId, int $assessmentId, mysqli $conn): ?array {
-    $sql = "SELECT id, candidate_id, assessment_id, exam_slot_id, status 
+    $retakeAllowed = get_setting_value('retake_allowed', $conn) === '1';
+    $statusFilter = $retakeAllowed ? "'in_progress'" : "'in_progress','submitted'";
+    $sql = "SELECT id, candidate_id, assessment_id, exam_slot_id, status, start_time 
             FROM attempts 
-            WHERE candidate_id = ? AND assessment_id = ? 
+            WHERE candidate_id = ? AND assessment_id = ? AND status IN ($statusFilter) 
+            ORDER BY id DESC
             LIMIT 1";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
@@ -222,10 +225,37 @@ function get_candidate_enrollment_for_update(int $candidateId, int $assessmentId
  * Prevents parallel race condition across different slots.
  */
 function get_candidate_booked_attempt_for_update(int $candidateId, int $assessmentId, mysqli $conn): ?array {
-    $sql = "SELECT id, candidate_id, assessment_id, exam_slot_id, status 
+    $retakeAllowed = get_setting_value('retake_allowed', $conn) === '1';
+    $statusFilter = $retakeAllowed ? "'in_progress'" : "'in_progress','submitted'";
+    $sql = "SELECT id, candidate_id, assessment_id, exam_slot_id, status, start_time 
+            FROM attempts 
+            WHERE candidate_id = ? AND assessment_id = ? AND status IN ($statusFilter) 
+            ORDER BY id DESC 
+            LIMIT 1 
+            FOR UPDATE";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new Exception("Failed to prepare attempt lock query: " . (@$conn->error ?: 'query error'));
+    }
+    $stmt->bind_param("ii", $candidateId, $assessmentId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    return $row ?: null;
+}
+
+/**
+ * Fetches the candidate's latest attempt for an assessment with an exclusive row lock (FOR UPDATE).
+ */
+function get_candidate_latest_attempt_for_update(int $candidateId, int $assessmentId, mysqli $conn): ?array {
+    $sql = "SELECT id, candidate_id, assessment_id, exam_slot_id, status, start_time 
             FROM attempts 
             WHERE candidate_id = ? AND assessment_id = ? 
-            LIMIT 1";
+            ORDER BY id DESC 
+            LIMIT 1 
+            FOR UPDATE";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         throw new Exception("Failed to prepare attempt lock query: " . (@$conn->error ?: 'query error'));
@@ -296,11 +326,9 @@ function decrement_slot_capacity(int $slotId, mysqli $conn): int {
 }
 
 /**
- * Inserts a new booked attempt for a candidate.
- * Attempts status 'booked' per Tech Lead recommendation, with graceful fallback to 'in_progress'
- * if the live database schema enum has not yet been updated by M1.
+ * Inserts a new attempt for a candidate.
  */
-function insert_attempt(int $candidateId, int $assessmentId, int $slotId, mysqli $conn, string $status = 'booked'): int {
+function insert_attempt(int $candidateId, int $assessmentId, int $slotId, mysqli $conn, string $status = 'in_progress'): int {
     $sql = "INSERT INTO attempts (candidate_id, assessment_id, exam_slot_id, status, created_at) 
             VALUES (?, ?, ?, ?, NOW())";
     $stmt = $conn->prepare($sql);
@@ -308,20 +336,11 @@ function insert_attempt(int $candidateId, int $assessmentId, int $slotId, mysqli
         throw new Exception("Failed to prepare attempt insert query: " . (@$conn->error ?: 'query error'));
     }
     $stmt->bind_param("iiis", $candidateId, $assessmentId, $slotId, $status);
-    
-    try {
-        $stmt->execute();
-        $attemptId = (int)$stmt->insert_id;
-        $stmt->close();
-        return $attemptId;
-    } catch (mysqli_sql_exception $e) {
-        $stmt->close();
-        // Fallback to 'in_progress' if 'booked' is not yet in the MySQL ENUM on the database
-        if ($status === 'booked' && (str_contains($e->getMessage(), 'truncated') || str_contains($e->getMessage(), 'status'))) {
-            return insert_attempt($candidateId, $assessmentId, $slotId, $conn, 'in_progress');
-        }
-        throw $e;
-    }
+    $stmt->execute();
+    $attemptId = (int)$stmt->insert_id;
+    $stmt->close();
+
+    return $attemptId;
 }
 
 /**
@@ -341,7 +360,7 @@ function get_available_slots_by_batch(int $batchId, mysqli $conn): array {
             JOIN exam_schedules sch ON s.exam_schedule_id = sch.id
             WHERE sch.batch_id = ? 
               AND sch.status = 'scheduled' 
-              AND sch.exam_date >= CURDATE()
+              AND (sch.exam_date > CURDATE() OR (sch.exam_date = CURDATE() AND s.end_time > CURTIME()))
               AND s.seats_remaining > 0
             ORDER BY sch.exam_date ASC, s.start_time ASC";
     $stmt = $conn->prepare($sql);
@@ -375,7 +394,7 @@ function get_available_slots_by_assessment(int $assessmentId, mysqli $conn): arr
             JOIN batches b ON sch.batch_id = b.id
             WHERE b.assessment_id = ? 
               AND sch.status = 'scheduled' 
-              AND sch.exam_date >= CURDATE()
+              AND (sch.exam_date > CURDATE() OR (sch.exam_date = CURDATE() AND s.end_time > CURTIME()))
               AND s.seats_remaining > 0
             ORDER BY sch.exam_date ASC, s.start_time ASC";
     $stmt = $conn->prepare($sql);
@@ -389,26 +408,5 @@ function get_available_slots_by_assessment(int $assessmentId, mysqli $conn): arr
     $stmt->close();
 
     return $rows;
-}
-
-/**
- * Fetches batch details by ID.
- */
-function get_batch_by_id(int $batchId, mysqli $conn): ?array {
-    $sql = "SELECT id, batch_number, assessment_id, creation_date, created_at 
-            FROM batches 
-            WHERE id = ? 
-            LIMIT 1";
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
-        throw new Exception("Failed to prepare get batch query: " . (@$conn->error ?: 'query error'));
-    }
-    $stmt->bind_param("i", $batchId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $row = $result->fetch_assoc();
-    $stmt->close();
-
-    return $row ?: null;
 }
 ?>

@@ -1,17 +1,19 @@
 <?php
-// Path: src/core/validator.php
-
-/**
- * Sanitizes string inputs to prevent XSS.
- */
-function sanitize_string(string $input): string {
-    return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+function require_positive_int($value, string $field): int
+{
+    $number = filter_var($value, FILTER_VALIDATE_INT);
+    if ($number === false || $number < 1) {
+        throw new InvalidArgumentException($field . ' must be a positive integer.');
+    }
+    return $number;
 }
 
-/**
- * Validates email format.
- */
-function is_valid_email(string $email): bool {
-    return filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false;
+function sanitize_string(string $input): string
+{
+    return trim($input);
 }
-?>
+
+function is_valid_email(string $email): bool
+{
+    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+}
