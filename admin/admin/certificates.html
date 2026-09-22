@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Certificates | InternBoot Admin</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        intern: {
+                            blue: "#2563eb",
+                            dark: "#1d4ed8",
+                            light: "#eff6ff"
+                        }
+                    },
+                    fontFamily: {
+                        inter: ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+
+<body class="bg-slate-50 font-inter text-slate-800">
+
+    <div class="flex min-h-screen">
+
+
+        <!-- SIDEBAR -->
+        <aside class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white">
+
+            <!-- Logo -->
+            <div class="flex h-24 items-center justify-center border-b border-slate-200 px-5">
+
+                <img src="../assets/logo.png" alt="InternBoot" class="w-40">
+
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-4 py-6">
+
+                <a href="index.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
+                    Dashboard
+                </a>
+
+
+                <a href="candidates.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="users" class="h-5 w-5"></i>
+                    Candidates
+                </a>
+
+
+                <a href="batches.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="calendar-days" class="h-5 w-5"></i>
+                    Batches & Slots
+                </a>
+
+
+                <a href="questions.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="file-question" class="h-5 w-5"></i>
+                    Question Bank
+                </a>
+
+
+                <a href="results.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="chart-column" class="h-5 w-5"></i>
+                    Results
+                </a>
+
+
+                <!-- ACTIVE -->
+                <a href="certificates.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl bg-intern-blue px-4 font-medium text-white">
+                    <i data-lucide="award" class="h-5 w-5"></i>
+                    Certificates
+                </a>
+
+
+                <a href="placement.html"
+                    class="mb-2 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 transition hover:bg-intern-light hover:text-intern-blue">
+                    <i data-lucide="briefcase-business" class="h-5 w-5"></i>
+                    Placement
+                </a>
+
+            </nav>
+
+
+            <!-- Bottom -->
+            <div class="border-t border-slate-200 p-4">
+
+                <a href="setting.html"
+                    class="mb-1 flex h-12 items-center gap-4 rounded-xl px-4 text-slate-600 hover:bg-slate-100">
+                    <i data-lucide="settings" class="h-5 w-5"></i>
+                    Settings
+                </a>
+
+
+                <a href="#" class="flex h-12 items-center gap-4 rounded-xl px-4 text-red-500 hover:bg-red-50">
+                    <i data-lucide="log-out" class="h-5 w-5"></i>
+                    Logout
+                </a>
+
+            </div>
+
+        </aside>
+
+
+
+        <!-- MAIN -->
+        <main class="ml-64 flex-1">
+
+
+            <!-- HEADER -->
+            <header class="flex h-24 items-center justify-between border-b border-slate-200 bg-white px-8">
+
+                <div>
+
+                    <h1 class="text-2xl font-semibold text-slate-900">
+                        Certificates
+                    </h1>
+
+                    <p class="mt-1 text-sm text-slate-500">
+                        Generate and manage candidate certificates
+                    </p>
+
+                </div>
+
+
+                <div class="flex items-center gap-3">
+
+                    <a href="setting.html" id="adminAvatar"
+                        class="group relative flex h-10 w-10  items-center justify-center overflow-hidden rounded-full bg-intern-light font-semibold text-intern-blue" title="Profile Settings">
+
+                        <img id="adminAvatarImage" src="" alt="Admin Avatar" class="hidden h-full w-full object-cover">
+
+                        <span id="adminAvatarInitial">A</span>
+
+                        <span
+                            class="absolute inset-0 hidden items-center justify-center bg-black/40 text-[9px] font-medium text-white group-hover:flex">
+                            Edit
+                        </span>
+
+                    </a>
+
+                    <input type="file" id="avatarUpload" accept="image/png,image/jpeg,image/jpg,image/webp"
+                        class="hidden">
+
+                    <div class="hidden">
+                        <p id="adminHeaderName" class="text-sm font-semibold text-slate-800">
+                            Admin
+                        </p>
+
+                        <p class="text-xs text-slate-500">
+                            Administrator
+                        </p>
+                    </div>
+
+                </div>
+
+            </header>
+
+
+
+            <!-- CONTENT -->
+            <section class="max-w-[1600px] p-8">
+
+
+                <!-- PAGE TITLE -->
+                <div class="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+
+                    <div>
+
+                        <h2 class="text-xl font-semibold text-slate-900">
+                            Certificate Management
+                        </h2>
+
+                        <p class="mt-1 text-sm text-slate-500">
+                            Certificates generated after final level assignment.
+                        </p>
+
+                    </div>
+
+
+                    <button id="generateCertificateButton" type="button"
+                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-intern-blue px-5 py-3 text-sm font-medium text-white transition hover:bg-intern-dark">
+
+                        <i data-lucide="plus" class="h-4 w-4"></i>
+
+                        Generate Certificate
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- STATISTICS -->
+                <div class="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+
+                    <!-- TOTAL -->
+                    <div
+                        class="flex min-h-[116px] items-center rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                        <div class="flex w-full items-center justify-between">
+
+                            <div>
+
+                                <p class="text-sm text-slate-500">
+                                    Total Certificates
+                                </p>
+
+                                <p id="totalCertificates" class="mt-2 text-2xl font-semibold text-slate-900">
+                                    0
+                                </p>
+
+                            </div>
+
+                            <div
+                                class="flex h-11 w-11 items-center justify-center rounded-xl bg-intern-light text-intern-blue">
+
+                                <i data-lucide="files" class="h-5 w-5"></i>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- GENERATED -->
+                    <div
+                        class="flex min-h-[116px] items-center rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                        <div class="flex w-full items-center justify-between">
+
+                            <div>
+
+                                <p class="text-sm text-slate-500">
+                                    Generated
+                                </p>
+
+                                <p id="generatedCertificates" class="mt-2 text-2xl font-semibold text-slate-900">
+                                    0
+                                </p>
+
+                            </div>
+
+                            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+
+                                <i data-lucide="file-check" class="h-5 w-5"></i>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- PENDING -->
+                    <div
+                        class="flex min-h-[116px] items-center rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                        <div class="flex w-full items-center justify-between">
+
+                            <div>
+
+                                <p class="text-sm text-slate-500">
+                                    Pending
+                                </p>
+
+                                <p id="pendingCertificates" class="mt-2 text-2xl font-semibold text-amber-600">
+                                    0
+                                </p>
+
+                            </div>
+
+                            <div
+                                class="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+
+                                <i data-lucide="clock-3" class="h-5 w-5"></i>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- VERIFIED -->
+                    <div
+                        class="flex min-h-[116px] items-center rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                        <div class="flex w-full items-center justify-between">
+
+                            <div>
+
+                                <p class="text-sm text-slate-500">
+                                    Verified
+                                </p>
+
+                                <p id="verifiedCertificates" class="mt-2 text-2xl font-semibold text-green-600">
+                                    0
+                                </p>
+
+                            </div>
+
+                            <div
+                                class="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-green-600">
+
+                                <i data-lucide="badge-check" class="h-5 w-5"></i>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- FILTERS -->
+                <div class="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                    <div class="grid grid-cols-1 items-center gap-4 md:grid-cols-3">
+
+
+                        <!-- SEARCH -->
+                        <div class="relative">
+
+                            <i data-lucide="search"
+                                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+
+                            <input id="certificateSearch" type="text"
+                                placeholder="Search candidate or certificate no..."
+                                class="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-intern-blue focus:ring-2 focus:ring-blue-100">
+
+                        </div>
+
+
+
+                        <!-- LEVEL -->
+                        <select id="certificateLevelFilter"
+                            class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-intern-blue focus:ring-2 focus:ring-blue-100">
+
+                            <option value="">
+                                All Levels
+                            </option>
+
+                            <option value="level 1">
+                                Level 1
+                            </option>
+
+                            <option value="level 2">
+                                Level 2
+                            </option>
+
+                            <option value="level 3">
+                                Level 3
+                            </option>
+
+                            <option value="level 4">
+                                Level 4
+                            </option>
+
+                            <option value="level 5">
+                                Level 5
+                            </option>
+
+                        </select>
+
+
+
+                        <!-- STATUS -->
+                        <select id="certificateStatusFilter"
+                            class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-intern-blue focus:ring-2 focus:ring-blue-100">
+
+                            <option value="">
+                                All Status
+                            </option>
+
+                            <option value="verified">
+                                Verified
+                            </option>
+
+                            <option value="generated">
+                                Generated
+                            </option>
+
+                            <option value="pending">
+                                Pending
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- CERTIFICATES TABLE -->
+                <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <!-- TABLE HEADER -->
+                    <div class="border-b border-slate-200 px-6 py-4">
+
+                        <h2 class="font-semibold text-slate-900">
+                            Certificates
+                        </h2>
+
+                        <p class="mt-1 text-sm text-slate-500">
+                            View, download and verify candidate certificates.
+                        </p>
+
+                    </div>
+
+
+                    <div class="w-full overflow-hidden">
+
+                        <table class="w-full table-fixed text-left text-sm">
+
+                            <thead class="bg-slate-50">
+                                <tr class="border-b border-slate-100">
+
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-500">
+                                        CANDIDATE
+                                    </th>
+
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-500">
+                                        LEVEL
+                                    </th>
+
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-500">
+                                        CERTIFICATE NO.
+                                    </th>
+
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-500">
+                                        ISSUE DATE
+                                    </th>
+
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-500">
+                                        STATUS
+                                    </th>
+
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-slate-500">
+                                        ACTION
+                                    </th>
+
+                                </tr>
+                            </thead>
+
+
+                            <tbody id="certificatesTableBody" class="divide-y divide-slate-100">
+
+
+                                <!-- SAMPLE CERTIFICATE 1 -->
+                                <!-- RAHUL -->
+                                <tr data-certificate data-level="level 1" data-status="verified"
+                                    class="border-b border-slate-100 last:border-0">
+
+                                    <!-- Candidate -->
+                                    <td class="px-6 py-5 align-middle">
+                                        <div>
+                                            <p class="font-medium text-slate-900">
+                                                Rahul Sharma
+                                            </p>
+
+                                            <p class="mt-1 text-xs text-slate-500">
+                                                rahul@example.com
+                                            </p>
+                                        </div>
+                                    </td>
+
+
+                                    <!-- Level -->
+                                    <td class="px-6 py-5 align-middle">
+                                        <span
+                                            class="inline-flex w-[76px] items-center justify-center rounded-full bg-blue-50 px-3 py-2 text-sm font-medium leading-tight text-blue-600">
+                                            Level 1
+                                        </span>
+                                    </td>
+
+
+                                    <!-- Certificate -->
+                                    <td class="px-6 py-5 align-middle font-medium text-slate-700">
+                                        IB-2026-0001
+                                    </td>
+
+
+                                    <!-- Issue Date -->
+                                    <td class="px-6 py-5 align-middle text-slate-500">
+                                        14 Sep 2026
+                                    </td>
+
+
+                                    <!-- Status -->
+                                    <td class="px-6 py-5 align-middle">
+                                        <span
+                                            class="inline-flex rounded-full bg-green-50 px-3 py-2 text-sm font-medium text-green-600">
+                                            Verified
+                                        </span>
+                                    </td>
+
+
+                                    <!-- Actions -->
+                                    <td class="px-4 py-5 align-middle">
+                                        <div class="flex items-center gap-1.5 whitespace-nowrap">
+
+                                            <!-- View -->
+                                            <button type="button" title="View certificate"
+                                                class="view-certificate-btn inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-intern-blue hover:text-intern-blue">
+
+                                                <i data-lucide="eye" class="h-4 w-4"></i>
+
+                                            </button>
+
+
+                                            <!-- Download -->
+                                            <button type="button" title="Download certificate"
+                                                class="download-certificate-btn inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-intern-blue hover:text-intern-blue">
+
+                                                <i data-lucide="download" class="h-4 w-4"></i>
+
+                                            </button>
+
+
+                                            <!-- Verify -->
+                                            <button type="button"
+                                                class="verify-certificate-btn inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 px-2 text-xs font-medium text-green-600 transition hover:bg-green-100">
+
+                                                <i data-lucide="badge-check" class="h-4 w-4 shrink-0"></i>
+
+                                            </button>
+
+                                        </div>
+                                    </td>
+
+                                </tr>
+
+
+                                <!-- AMAN -->
+                                <tr data-certificate data-level="level 2" data-status="verified"
+                                    class="border-b border-slate-100 last:border-0">
+
+                                    <!-- Candidate -->
+                                    <td class="px-6 py-5 align-middle">
+                                        <div>
+                                            <p class="font-medium text-slate-900">
+                                                Aman Verma
+                                            </p>
+
+                                            <p class="mt-1 text-xs text-slate-500">
+                                                aman@example.com
+                                            </p>
+                                        </div>
+                                    </td>
+
+
+                                    <!-- Level -->
+                                    <td class="px-6 py-5 align-middle">
+                                        <span
+                                            class="inline-flex w-[76px] items-center justify-center rounded-full bg-blue-50 px-3 py-2 text-sm font-medium leading-tight text-blue-600">
+                                            Level 2
+                                        </span>
+                                    </td>
+
+
+                                    <!-- Certificate -->
+                                    <td class="px-6 py-5 align-middle font-medium text-slate-700">
+                                        IB-2026-0002
+                                    </td>
+
+
+                                    <!-- Issue Date -->
+                                    <td class="px-6 py-5 align-middle text-slate-500">
+                                        14 Sep 2026
+                                    </td>
+
+
+                                    <!-- Status -->
+                                    <td class="px-6 py-5 align-middle">
+                                        <span
+                                            class="inline-flex rounded-full bg-green-50 px-3 py-2 text-sm font-medium text-green-600">
+                                            Verified
+                                        </span>
+                                    </td>
+
+
+                                    <!-- Actions -->
+                                    <td class="px-4 py-5 align-middle">
+                                        <div class="flex items-center gap-1.5 whitespace-nowrap">
+
+                                            <!-- View -->
+                                            <button type="button" title="View certificate"
+                                                class="view-certificate-btn inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-intern-blue hover:text-intern-blue">
+
+                                                <i data-lucide="eye" class="h-4 w-4"></i>
+
+                                            </button>
+
+
+                                            <!-- Download -->
+                                            <button type="button" title="Download certificate"
+                                                class="download-certificate-btn inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-intern-blue hover:text-intern-blue">
+
+                                                <i data-lucide="download" class="h-4 w-4"></i>
+
+                                            </button>
+
+
+                                            <!-- Verify -->
+                                            <button type="button"
+                                                class="verify-certificate-btn inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 px-2 text-xs font-medium text-green-600 transition hover:bg-green-100">
+
+                                                <i data-lucide="badge-check" class="h-4 w-4 shrink-0"></i>
+
+                                            </button>
+
+                                        </div>
+                                    </td>
+
+                                </tr>
+
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            if (typeof lucide !== "undefined") {
+                lucide.createIcons();
+            }
+        });
+    </script>
+
+    <script src="../js/admin.js"></script>
+
+</body>
+
+</html>

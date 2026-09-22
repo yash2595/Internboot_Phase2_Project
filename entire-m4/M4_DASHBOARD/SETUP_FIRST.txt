@@ -1,0 +1,31 @@
+M4 INTERNBOOT - FRESH PACKAGE
+
+1. Extract this whole folder into:
+   C:\xampp\htdocs\
+
+2. Rename the folder if you want, but keep all files/folders together.
+
+3. Create a file named .env in the project root by copying .env.example.
+
+4. Put your Railway MySQL PUBLIC connection values in .env.
+   Do NOT share the password or commit .env to GitHub.
+
+5. Start Apache in XAMPP.
+
+6. First test:
+   http://localhost/M4_InternBoot_M4_COMPLETE/backend/connection-test.php
+
+7. Then test dashboard API:
+   http://localhost/M4_InternBoot_M4_COMPLETE/backend/dashboard.php?candidate_id=1
+
+8. Then open:
+   http://localhost/M4_InternBoot_M4_COMPLETE/dashboard.html
+
+IMPORTANT:
+- This package is the complete M4 frontend + backend package.
+- It includes Dashboard, Profile, Payment, Enrollment, Batches & Slots,
+  Exam, Results, Certificates and Settings pages.
+- Payment/enrollment backend is included.
+- Dashboard currently supports candidate_id demo mode. M3 session auth can be
+  connected later.
+- Do not delete backend, js, css, assets, db.php, or other project files.
