@@ -2,18 +2,24 @@
 // Path: src/modules/m1_ai_qbank/queries.php
 
 /**
- * Inserts a manually created approved question into the questions table.
+ * AI generation pipelines must rely on the default (pending). Never pass
+ * 'approved' from an AI-sourced insert.
+ * Inserts a manually created or generated question into the questions table.
  */
-function insert_question(int $qbankId, string $questionText, string $difficulty, mysqli $conn): int {
+function insert_question(int $qbankId, string $questionText, string $difficulty, mysqli $conn, string $approvalStatus = 'pending'): int {
+    if (!in_array($approvalStatus, ['pending', 'approved', 'rejected'], true)) {
+        throw new InvalidArgumentException("Invalid approval status");
+    }
+
     $sql = "INSERT INTO questions (question_bank_id, question_text, type, difficulty, approval_status, created_at) 
-            VALUES (?, ?, 'MCQ', ?, 'approved', NOW())";
+            VALUES (?, ?, 'MCQ', ?, ?, NOW())";
     $stmt = $conn->prepare($sql);
     
     if (!$stmt) {
         throw new Exception("Failed to prepare question insert query: " . $conn->error);
     }
 
-    $stmt->bind_param("iss", $qbankId, $questionText, $difficulty);
+    $stmt->bind_param("isss", $qbankId, $questionText, $difficulty, $approvalStatus);
     $stmt->execute();
     $questionId = (int)$stmt->insert_id;
     $stmt->close();

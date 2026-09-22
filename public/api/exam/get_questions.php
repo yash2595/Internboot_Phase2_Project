@@ -1,31 +1,20 @@
 <?php
 
-session_start();
-
-require_once __DIR__ . '/../config/database.php';
-
-header('Content-Type: application/json');
+// Load central bootstrap
+if (file_exists(dirname(__DIR__, 3) . '/src/core/bootstrap.php')) {
+    require_once dirname(__DIR__, 3) . '/src/core/bootstrap.php';
+} elseif (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../../../src/core/bootstrap.php';
+} else {
+    require_once __DIR__ . '/../src/core/bootstrap.php';
+}
 
 try {
 
     /*
      * 1. Candidate authentication
      */
-    if (
-        !isset($_SESSION['candidate_id']) ||
-        !is_numeric($_SESSION['candidate_id'])
-    ) {
-        http_response_code(401);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Candidate authentication required'
-        ]);
-
-        exit;
-    }
-
-    $candidateId = (int) $_SESSION['candidate_id'];
+    $candidateId = require_candidate_auth($conn);
 
     /*
      * 2. Attempt ID
@@ -35,14 +24,7 @@ try {
         : 0;
 
     if ($attemptId <= 0) {
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid attempt ID'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid attempt ID', null, 400);
     }
 
     /*
@@ -83,46 +65,25 @@ try {
     $attemptStmt->close();
 
     if (!$attempt) {
-
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt not found or access denied'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt not found or access denied', null, 404);
     }
 
     /*
      * 4. Only in-progress attempts can load questions.
      */
     if ($attempt['status'] !== 'in_progress') {
-
-        http_response_code(403);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Questions are not available for this attempt',
+        send_json_response('error', 'Questions are not available for this attempt', [
             'status' => $attempt['status']
-        ]);
-
-        exit;
+        ], 403);
     }
 
     /*
      * 5. Server-side expiry check
+     * Note: Initial start timing (start_time & end_time) is set exclusively
+     * by start_exam.php after passing the scheduled date/window gate.
      */
     if (empty($attempt['end_time'])) {
-
-        http_response_code(500);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt timing is not initialized'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt timing is not initialized', null, 500);
     }
 
     $now = new DateTime();
@@ -156,16 +117,18 @@ try {
 
         $expireStmt->close();
 
-        http_response_code(403);
+        require_once __DIR__ . '/../../../src/modules/m7_evaluation_admin/service.php';
+        try {
+            evaluate_attempt($conn, $attemptId, false);
+        } catch (Throwable $evalError) {
+            error_log('Auto-evaluation failed for attempt ' . $attemptId . ': ' . $evalError->getMessage());
+        }
 
-        echo json_encode([
-            'success' => false,
-            'message' => 'Exam time has expired',
+        send_json_response('error', 'Exam time has expired', [
             'status' => 'expired'
-        ]);
-
-        exit;
+        ], 403);
     }
+
 
     /*
      * 6. Get assessment configuration
@@ -176,7 +139,6 @@ try {
             total_questions
         FROM assessments
         WHERE id = ?
-          AND status = 'active'
         LIMIT 1
     ";
 
@@ -199,19 +161,13 @@ try {
 
     $assessmentStmt->close();
 
-    if (!$assessment) {
+    $totalQuestions = ($assessment && !empty($assessment['total_questions']))
+        ? (int) $assessment['total_questions']
+        : 50;
 
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Assessment not found'
-        ]);
-
-        exit;
+    if ($totalQuestions <= 0) {
+        $totalQuestions = 50;
     }
-
-    $totalQuestions = (int) $assessment['total_questions'];
 
     /*
      * 7. Select deterministic randomized questions.
@@ -219,43 +175,61 @@ try {
      * Same attempt = same order after refresh.
      * Different attempt = different order.
      */
-    $questionSql = "
-        SELECT
-            q.id AS question_id,
-            q.question_text,
-            q.type,
-            q.difficulty
-        FROM questions q
-        INNER JOIN question_banks qb
-            ON qb.id = q.question_bank_id
-        WHERE qb.assessment_id = ?
-          AND qb.status = 'approved'
-          AND q.type = 'MCQ'
-          AND q.approval_status = 'approved'
-        ORDER BY MD5(CONCAT(?, ':', q.id))
-        LIMIT ?
-    ";
+    $conn->begin_transaction();
+    try {
+        // Try to read an existing snapshot, locking it against concurrent builds.
+        $snapshotSql = "
+            SELECT q.id AS question_id, q.question_text, q.type, q.difficulty
+            FROM attempt_questions aq
+            JOIN questions q ON q.id = aq.question_id
+            WHERE aq.attempt_id = ?
+            ORDER BY aq.position ASC
+            FOR UPDATE
+        ";
+        $snapStmt = $conn->prepare($snapshotSql);
+        $snapStmt->bind_param("i", $attemptId);
+        $snapStmt->execute();
+        $fetchedQuestions = $snapStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $snapStmt->close();
 
-    $questionStmt = $conn->prepare($questionSql);
+        if (empty($fetchedQuestions)) {
+            // First call for this attempt — build the snapshot once from the live pool.
+            $poolSql = "
+                SELECT q.id AS question_id, q.question_text, q.type, q.difficulty
+                FROM questions q
+                INNER JOIN question_banks qb ON qb.id = q.question_bank_id
+                WHERE qb.assessment_id = ?
+                  AND q.type = 'MCQ'
+                  AND q.approval_status = 'approved'
+                ORDER BY MD5(CONCAT(?, ':', q.id))
+                LIMIT ?
+            ";
+            $poolStmt = $conn->prepare($poolSql);
+            $poolStmt->bind_param("iii", $attempt['assessment_id'], $attemptId, $totalQuestions);
+            $poolStmt->execute();
+            $fetchedQuestions = $poolStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $poolStmt->close();
 
-    if (!$questionStmt) {
-        throw new Exception('Failed to prepare question query');
+            $insertSql = "INSERT INTO attempt_questions (attempt_id, question_id, position) VALUES (?, ?, ?)";
+            $insertStmt = $conn->prepare($insertSql);
+            foreach ($fetchedQuestions as $pos => $q) {
+                $position = $pos + 1;
+                $qId = (int)$q['question_id'];
+                $insertStmt->bind_param("iii", $attemptId, $qId, $position);
+                $insertStmt->execute();
+            }
+            $insertStmt->close();
+        }
+
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback();
+        throw $e;
     }
-
-    $questionStmt->bind_param(
-        "iii",
-        $attempt['assessment_id'],
-        $attemptId,
-        $totalQuestions
-    );
-
-    $questionStmt->execute();
-
-    $questionResult = $questionStmt->get_result();
 
     $questions = [];
 
-    while ($question = $questionResult->fetch_assoc()) {
+    foreach ($fetchedQuestions as $question) {
 
         $questionId = (int) $question['question_id'];
 
@@ -271,7 +245,7 @@ try {
                 option_text
             FROM options
             WHERE question_id = ?
-            ORDER BY id ASC
+            ORDER BY MD5(CONCAT(?, ':', id))
         ";
 
         $optionStmt = $conn->prepare($optionSql);
@@ -281,8 +255,9 @@ try {
         }
 
         $optionStmt->bind_param(
-            "i",
-            $questionId
+            "ii",
+            $questionId,
+            $attemptId
         );
 
         $optionStmt->execute();
@@ -358,25 +333,18 @@ try {
         ];
     }
 
-    $questionStmt->close();
-
     /*
-     * 11. Return questions.
+     * 11. Return questions using standardized helper.
      */
-    echo json_encode([
+    send_json_response('success', 'Questions retrieved successfully', [
         'success' => true,
         'attempt_id' => $attemptId,
         'assessment_id' => (int) $attempt['assessment_id'],
         'total_questions' => count($questions),
         'questions' => $questions
-    ]);
+    ], 200);
 
 } catch (Throwable $e) {
-
-    http_response_code(500);
-
-    echo json_encode([
-        'success' => false,
-        'message' => 'Internal server error'
-    ]);
+    error_log('get_questions error: ' . $e->getMessage());
+    send_json_response('error', 'Internal server error', null, 500);
 }

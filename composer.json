@@ -1,6 +1,7 @@
 {
     "require": {
-        "vlucas/phpdotenv": "*",
-        "phpmailer/phpmailer": "^7.1"
+        "phpmailer/phpmailer": "^7.1",
+        "tecnickcom/tcpdf": "^6.11",
+        "vlucas/phpdotenv": "*"
     }
 }

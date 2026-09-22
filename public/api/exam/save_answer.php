@@ -1,45 +1,26 @@
 <?php
 
-session_start();
-
-require_once __DIR__ . '/../config/database.php';
-
-header('Content-Type: application/json');
+// Load central bootstrap
+if (file_exists(dirname(__DIR__, 3) . '/src/core/bootstrap.php')) {
+    require_once dirname(__DIR__, 3) . '/src/core/bootstrap.php';
+} elseif (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../../../src/core/bootstrap.php';
+} else {
+    require_once __DIR__ . '/../src/core/bootstrap.php';
+}
 
 try {
 
     /*
      * 1. Candidate authentication
      */
-    if (
-        !isset($_SESSION['candidate_id']) ||
-        !is_numeric($_SESSION['candidate_id'])
-    ) {
-        http_response_code(401);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Candidate authentication required'
-        ]);
-
-        exit;
-    }
-
-    $candidateId = (int) $_SESSION['candidate_id'];
+    $candidateId = require_candidate_auth($conn);
 
     /*
      * 2. Only POST is allowed.
      */
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
-        http_response_code(405);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'POST request required'
-        ]);
-
-        exit;
+        send_json_response('error', 'POST request required', null, 405);
     }
 
     /*
@@ -51,15 +32,7 @@ try {
     );
 
     if (!is_array($input)) {
-
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid JSON body'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid JSON body', null, 400);
     }
 
     $attemptId = isset($input['attempt_id'])
@@ -79,15 +52,7 @@ try {
         $questionId <= 0 ||
         $selectedOptionId <= 0
     ) {
-
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid answer data'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid answer data', null, 400);
     }
 
     /*
@@ -126,43 +91,22 @@ try {
     $attemptStmt->close();
 
     if (!$attempt) {
-
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt not found or access denied'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt not found or access denied', null, 404);
     }
 
     if ($attempt['status'] !== 'in_progress') {
-
-        http_response_code(403);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'This attempt is no longer active',
+        send_json_response('error', 'This attempt is no longer active', [
             'status' => $attempt['status']
-        ]);
-
-        exit;
+        ], 403);
     }
 
     /*
      * 5. Server-side expiry check.
+     * Note: Initial start timing (start_time & end_time) is set exclusively
+     * by start_exam.php after passing the scheduled date/window gate.
      */
     if (empty($attempt['end_time'])) {
-
-        http_response_code(500);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt timing is not initialized'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt timing is not initialized', null, 500);
     }
 
     $now = new DateTime();
@@ -199,140 +143,51 @@ try {
 
         $expireStmt->close();
 
-        http_response_code(403);
+        require_once __DIR__ . '/../../../src/modules/m7_evaluation_admin/service.php';
+        try {
+            evaluate_attempt($conn, $attemptId, false);
+        } catch (Throwable $evalError) {
+            error_log('Auto-evaluation failed for attempt ' . $attemptId . ': ' . $evalError->getMessage());
+        }
 
-        echo json_encode([
-            'success' => false,
-            'message' => 'Exam time has expired',
+        send_json_response('error', 'Exam time has expired', [
             'status' => 'expired'
-        ]);
-
-        exit;
+        ], 403);
     }
+
 
     /*
      * 6. Get the assessment's configured question count.
      */
-    $assessmentSql = "
-        SELECT
-            total_questions
-        FROM assessments
-        WHERE id = ?
-          AND status = 'active'
-        LIMIT 1
-    ";
-
-    $assessmentStmt = $conn->prepare($assessmentSql);
-
-    if (!$assessmentStmt) {
-        throw new Exception('Failed to prepare assessment query');
-    }
-
-    $assessmentStmt->bind_param(
-        "i",
-        $attempt['assessment_id']
-    );
-
-    $assessmentStmt->execute();
-
-    $assessmentResult = $assessmentStmt->get_result();
-
-    $assessment = $assessmentResult->fetch_assoc();
-
-    $assessmentStmt->close();
-
-    if (!$assessment) {
-
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Assessment not found'
-        ]);
-
-        exit;
-    }
-
-    $totalQuestions = (int) $assessment['total_questions'];
-
-    if ($totalQuestions <= 0) {
-
-        http_response_code(500);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid assessment question configuration'
-        ]);
-
-        exit;
-    }
-
     /*
      * 7. IMPORTANT:
      *
      * Verify that the question is actually part of THIS
-     * attempt's deterministic randomized question set.
-     *
-     * This uses exactly the same ordering algorithm as
-     * get_questions.php.
+     * attempt's frozen question set.
      */
     $assignedQuestionSql = "
-        SELECT
-            q.id
-        FROM questions q
-        INNER JOIN question_banks qb
-            ON qb.id = q.question_bank_id
-        WHERE qb.assessment_id = ?
-          AND qb.status = 'approved'
-          AND q.type = 'MCQ'
-          AND q.approval_status = 'approved'
-        ORDER BY MD5(CONCAT(?, ':', q.id))
-        LIMIT ?
+        SELECT 1
+        FROM attempt_questions
+        WHERE attempt_id = ? AND question_id = ?
+        LIMIT 1
     ";
 
-    $assignedStmt = $conn->prepare(
-        $assignedQuestionSql
-    );
+    $assignedStmt = $conn->prepare($assignedQuestionSql);
 
     if (!$assignedStmt) {
-        throw new Exception(
-            'Failed to prepare assigned question query'
-        );
+        throw new Exception('Failed to prepare assigned question query');
     }
 
-    $assignedStmt->bind_param(
-        "iii",
-        $attempt['assessment_id'],
-        $attemptId,
-        $totalQuestions
-    );
-
+    $assignedStmt->bind_param("ii", $attemptId, $questionId);
     $assignedStmt->execute();
-
     $assignedResult = $assignedStmt->get_result();
 
-    $questionAssigned = false;
-
-    while ($assignedQuestion = $assignedResult->fetch_assoc()) {
-
-        if ((int) $assignedQuestion['id'] === $questionId) {
-            $questionAssigned = true;
-            break;
-        }
-    }
+    $questionAssigned = ($assignedResult->num_rows > 0);
 
     $assignedStmt->close();
 
     if (!$questionAssigned) {
-
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Question is not assigned to this attempt'
-        ]);
-
-        exit;
+        send_json_response('error', 'Question is not assigned to this attempt', null, 400);
     }
 
     /*
@@ -370,15 +225,7 @@ try {
     $optionStmt->close();
 
     if (!$validOption) {
-
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid option for this question'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid option for this question', null, 400);
     }
 
     /*
@@ -423,22 +270,16 @@ try {
     $answerStmt->close();
 
     /*
-     * 10. Success response.
+     * 10. Success response using standardized helper.
      */
-    echo json_encode([
+    send_json_response('success', 'Answer saved successfully', [
         'success' => true,
-        'message' => 'Answer saved successfully',
         'attempt_id' => $attemptId,
         'question_id' => $questionId,
         'selected_option_id' => $selectedOptionId
-    ]);
+    ], 200);
 
 } catch (Throwable $e) {
-
-    http_response_code(500);
-
-    echo json_encode([
-        'success' => false,
-        'message' => 'Internal server error'
-    ]);
+    error_log('save_answer error: ' . $e->getMessage());
+    send_json_response('error', 'Internal server error', null, 500);
 }

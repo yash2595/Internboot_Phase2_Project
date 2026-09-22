@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang='en'>
+
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>InternBoot | Payments</title>
+  <link rel='stylesheet' href='css/style.css'>
+</head>
+
+<body>
+  <div class='app'>
+
+    <aside class='sidebar'>
+
+      <div class='brand'>
+        <a href='dashboard.html'>
+          <img src='assets/internboot-logo.png' alt='InternBoot logo'>
+        </a>
+      </div>
+
+      <nav class='side-nav'>
+
+        <a class='nav-item' href='dashboard.html'>
+          <span>Dashboard</span>
+        </a>
+
+        <a class='nav-item' href='profile.html'>
+          <span>My Profile</span>
+        </a>
+
+        <a class='nav-item active' href='payment.html'>
+          <span>Payments</span>
+        </a>
+
+        <a class='nav-item' href='enrollment.html'>
+          <span>Enrollment</span>
+        </a>
+
+        <a class='nav-item' href='batches-slots.html'>
+          <span>Batches & Slots</span>
+        </a>
+
+        <a class='nav-item' href='exam.html'>
+          <span>Exam</span>
+        </a>
+
+        <a class='nav-item' href='results.html'>
+          <span>Results</span>
+        </a>
+
+        <a class='nav-item' href='certificates.html'>
+          <span>Certificates</span>
+        </a>
+
+        <a class='nav-item' href='placement.html'>
+          <span>Placement</span>
+        </a>
+
+      </nav>
+
+      <div class='nav-bottom'>
+
+        <a class='nav-item' href='settings.html'>
+          <svg viewBox='0 0 24 24'>
+            <circle cx='12' cy='12' r='3' />
+            <path
+              d='M19 15l2 1-2 3-2-1a7 7 0 0 1-2 1l-.3 2h-3.4L11 19a7 7 0 0 1-2-1l-2 1-2-3 2-1a7 7 0 0 1 0-4L5 10l2-3 2 1a7 7 0 0 1 2-1l.3-2h3.4l.3 2a7 7 0 0 1 2 1l2-1 2 3-2 1a7 7 0 0 1 0 4z' />
+          </svg>
+          <span>Settings</span>
+        </a>
+
+        <a class='nav-item logout' href='api/auth/logout.php'>
+          <svg viewBox='0 0 24 24'>
+            <path d='M10 5H5v14h5M14 8l4 4-4 4M18 12H9' />
+          </svg>
+          <span>Logout</span>
+        </a>
+
+      </div>
+
+    </aside>
+
+    <main class='main'>
+
+      <header class='topbar'>
+
+        <div class='title'>
+          <h1>Payments</h1>
+          <p>Registration fee and transaction history</p>
+        </div>
+
+        <a class='profile-trigger' href='profile.html' title='Open My Profile'>
+
+          <div class='avatar' data-candidate="initials">JD</div>
+
+          <div class='user'>
+            <strong>
+              <span data-candidate="name"></span>
+            </strong>
+            <small>Candidate</small>
+          </div>
+
+        </a>
+
+      </header>
+
+      <section class='content'>
+
+        <!-- Feedback Alert Banner -->
+        <div id="payment-alert" class="card card-pad" style="display: none; margin-bottom: 20px; border-left: 4px solid #1652d6;">
+          <div id="payment-alert-body"></div>
+        </div>
+
+        <!-- Assessment & Payment Action Hero -->
+        <section class="hero" id="payment-action-card" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div>
+              <span class="badge blue" id="assessment-badge" style="margin-bottom: 8px;">Assessment Registration</span>
+              <h2 id="assessment-title" style="margin: 4px 0 0;">InternBoot Level Assessment</h2>
+              <p id="assessment-desc" style="margin: 6px 0 0; color: #53647a;">
+                Registration Fee: <strong id="assessment-fee-display" style="color: #17243a;">—</strong>
+                <span style="margin: 0 8px; color: #cbd5e1;">•</span>
+                <span id="assessment-meta">Duration: — | Questions: —</span>
+              </p>
+            </div>
+            <div id="payment-action-box" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <button id="btn-pay" class="btn btn-ib-primary btn-lg" type="button" style="border: none; cursor: pointer;">
+                Pay Registration Fee (Demo)
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <div class='grid4'>
+
+          <!-- Total Fee -->
+          <div class='card stat'>
+            <label>Total Fee</label>
+            <strong>
+              <span data-payment="totalFee">—</span>
+            </strong>
+          </div>
+
+          <!-- Paid Amount -->
+          <div class='card stat'>
+            <label>Paid Amount</label>
+            <strong class='green' id="stat-paid-amount">
+              <span data-payment="paidAmount">—</span>
+            </strong>
+          </div>
+
+          <!-- Payment Status -->
+          <div class='card stat'>
+            <label>Status</label>
+            <strong class='green' id="stat-payment-status">
+              <span data-payment="status">—</span>
+            </strong>
+          </div>
+
+          <!-- Transaction -->
+          <div class='card stat'>
+            <label>Transaction</label>
+            <strong>
+              <span data-payment="transactionId">—</span>
+            </strong>
+          </div>
+
+        </div>
+
+        <br>
+
+        <section class='card card-pad'>
+
+          <h2 class='section-title'>Payment Details</h2>
+
+          <!-- Assessment -->
+          <div class='row'>
+            <span class='label'>Assessment</span>
+            <span class='value'>
+              <span data-assessment="title">—</span>
+            </span>
+          </div>
+
+          <!-- Payment ID -->
+          <div class='row'>
+            <span class='label'>Payment ID</span>
+            <span class='value'>
+              <span data-payment="paymentId">—</span>
+            </span>
+          </div>
+
+          <!-- Transaction ID -->
+          <div class='row'>
+            <span class='label'>Transaction ID</span>
+            <span class='value'>
+              <span data-payment="transactionId">—</span>
+            </span>
+          </div>
+
+          <!-- Amount -->
+          <div class='row'>
+            <span class='label'>Amount</span>
+            <span class='value'>
+              <span data-payment="totalFee">—</span>
+            </span>
+          </div>
+
+          <!-- Payment Date -->
+          <div class='row'>
+            <span class='label'>Payment Date</span>
+            <span class='value'>
+              <span data-payment="paymentDate">—</span>
+            </span>
+          </div>
+
+          <!-- Payment Method -->
+          <div class='row'>
+            <span class='label'>Payment Method</span>
+            <span class='value'>
+              <span data-payment="method">—</span>
+            </span>
+          </div>
+
+          <!-- Status -->
+          <div class='row'>
+            <span class='label'>Status</span>
+            <span class='value'>
+              <span class='badge green' id="payment-status-badge">
+                <span data-payment="status">—</span>
+              </span>
+            </span>
+          </div>
+
+          <!-- Enrollment Status -->
+          <div class='row'>
+            <span class='label'>Enrollment Eligibility</span>
+            <span class='value'>
+              <span class='badge gray' id="enrollment-badge">
+                <span data-enrollment="status">—</span>
+              </span>
+            </span>
+          </div>
+
+        </section>
+
+      </section>
+
+      <footer class='footer'>
+        <span>© 2026 InternBoot. All rights reserved.</span>
+        <span>
+          Privacy Policy　 |　 Terms of Service　 |　 Support
+        </span>
+      </footer>
+
+    </main>
+
+  </div>
+
+  <script src="js/payment.js"></script>
+
+</body>
+
+</html>

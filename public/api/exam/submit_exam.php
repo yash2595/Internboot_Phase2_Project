@@ -1,36 +1,20 @@
 <?php
 
-session_start();
-
-require_once __DIR__ . '/../config/database.php';
-
-header('Content-Type: application/json');
+// Load central bootstrap
+if (file_exists(dirname(__DIR__, 3) . '/src/core/bootstrap.php')) {
+    require_once dirname(__DIR__, 3) . '/src/core/bootstrap.php';
+} elseif (file_exists(__DIR__ . '/../../../src/core/bootstrap.php')) {
+    require_once __DIR__ . '/../../../src/core/bootstrap.php';
+} else {
+    require_once __DIR__ . '/../src/core/bootstrap.php';
+}
 
 try {
 
-    if (
-    !isset($_SESSION['candidate_id']) ||
-    !is_numeric($_SESSION['candidate_id'])
-) {
-    http_response_code(401);
-
-    echo json_encode([
-        'success' => false,
-        'message' => 'Candidate authentication required'
-    ]);
-
-    exit;
-}
-
-$candidateId = (int) $_SESSION['candidate_id'];
+    $candidateId = require_candidate_auth($conn);
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode([
-            'success' => false,
-            'message' => 'POST request required'
-        ]);
-        exit;
+        send_json_response('error', 'POST request required', null, 405);
     }
 
     $input = json_decode(
@@ -43,14 +27,7 @@ $candidateId = (int) $_SESSION['candidate_id'];
         : 0;
 
     if ($attemptId <= 0) {
-        http_response_code(400);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid attempt ID'
-        ]);
-
-        exit;
+        send_json_response('error', 'Invalid attempt ID', null, 400);
     }
 
     /*
@@ -80,14 +57,7 @@ $candidateId = (int) $_SESSION['candidate_id'];
     $attempt = $result->fetch_assoc();
 
     if (!$attempt) {
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt not found or access denied'
-        ]);
-
-        exit;
+        send_json_response('error', 'Attempt not found or access denied', null, 404);
     }
 
     /*
@@ -97,15 +67,21 @@ $candidateId = (int) $_SESSION['candidate_id'];
         $attempt['status'] === 'submitted' ||
         $attempt['status'] === 'expired'
     ) {
-        http_response_code(409);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt has already been closed',
+        send_json_response('error', 'Attempt has already been closed', [
             'status' => $attempt['status']
-        ]);
+        ], 409);
+    }
 
-        exit;
+    /*
+     * Guard: reject if the exam was never started.
+     * start_time is set exclusively by start_exam.php after the slot-window
+     * gate is passed. A NULL start_time means the candidate has not yet
+     * opened the exam (e.g. future slot) and must not be able to submit.
+     */
+    if (empty($attempt['start_time'])) {
+        send_json_response('error', 'Exam has not been started yet', [
+            'status' => $attempt['status']
+        ], 409);
     }
 
     /*
@@ -121,6 +97,7 @@ $candidateId = (int) $_SESSION['candidate_id'];
         WHERE id = ?
           AND candidate_id = ?
           AND status = 'in_progress'
+          AND start_time IS NOT NULL
     ";
 
     $submitStmt = $conn->prepare($submitSql);
@@ -138,15 +115,19 @@ $candidateId = (int) $_SESSION['candidate_id'];
      * already submitted/expired the attempt.
      */
     if ($submitStmt->affected_rows !== 1) {
+        send_json_response('error', 'Attempt could not be submitted', null, 409);
+    }
 
-        http_response_code(409);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Attempt could not be submitted'
-        ]);
-
-        exit;
+    require_once __DIR__ . '/../../../src/modules/m7_evaluation_admin/service.php';
+    $evaluationDone = false;
+    try {
+        evaluate_attempt($conn, $attemptId, false);
+        $evaluationDone = true;
+    } catch (Throwable $evalError) {
+        error_log('Auto-evaluation failed for attempt ' . $attemptId . ': ' . $evalError->getMessage());
+        // Do not fail the submission if auto-evaluation errors —
+        // the attempt is still correctly marked submitted, and it
+        // remains visible to admin for manual evaluation as a fallback.
     }
 
     /*
@@ -170,24 +151,18 @@ $candidateId = (int) $_SESSION['candidate_id'];
 
     $answeredCount = (int) $answerData['answered_count'];
 
-    echo json_encode([
+    send_json_response('success', 'Exam submitted successfully', [
         'success' => true,
-        'message' => 'Exam submitted successfully',
         'attempt_id' => $attemptId,
         'candidate_id' => $candidateId,
         'assessment_id' => (int) $attempt['assessment_id'],
         'status' => 'submitted',
         'submitted_at' => date('Y-m-d H:i:s'),
         'answered_count' => $answeredCount,
-        'evaluation_pending' => true
-    ]);
+        'evaluation_pending' => !$evaluationDone
+    ], 200);
 
 } catch (Throwable $e) {
-
-    http_response_code(500);
-
-    echo json_encode([
-        'success' => false,
-        'message' => 'Internal server error'
-    ]);
+    error_log('submit_exam error: ' . $e->getMessage());
+    send_json_response('error', 'Internal server error', null, 500);
 }

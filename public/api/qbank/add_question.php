@@ -3,10 +3,8 @@
 
 require_once __DIR__ . '/../../../src/core/bootstrap.php';
 
-// RBAC Security Check: Admin Access Only
-if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    send_json_response('error', 'Unauthorized: admin access required', null, 403);
-}
+require_admin_access($conn);
+require_csrf();
 
 require_once __DIR__ . '/../../../src/modules/m1_ai_qbank/controller.php';
 
